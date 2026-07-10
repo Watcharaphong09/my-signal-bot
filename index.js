@@ -45,7 +45,7 @@ client.on('interactionCreate', async interaction => {
 // ⏳ ระบบเช็ควันหมดอายุอัตโนมัติ
 function startCronJobs() {
     // 🌟 เปลี่ยนเป็น '* * * * *' ชั่วคราว เพื่อให้บอทสแกนทุกๆ 1 นาที (เทสต์เสร็จค่อยแก้กลับเป็น '0 0 * * *')
-    cron.schedule('* * * * *', async () => {
+    cron.schedule('0 0 * * *', async () => {
         console.log('⏳ Running membership expiration checks (1-minute interval)...');
         const today = new Date();
         const threeDaysFromNow = new Date();
