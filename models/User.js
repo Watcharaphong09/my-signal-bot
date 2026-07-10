@@ -6,7 +6,8 @@ const userSchema = new mongoose.Schema({
     startDate: { type: Date, default: Date.now },
     expireDate: { type: Date, required: true },
     renewCount: { type: Number, default: 1 },
-    status: { type: String, default: 'active' }
+    status: { type: String, default: 'active' },
+    notified3Days: { type: Boolean, default: false }
 });
 
 module.exports = mongoose.model('User', userSchema);

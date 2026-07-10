@@ -45,12 +45,14 @@ module.exports = {
             userData.expireDate = newExpireDate; // อัปเดตวันหมดอายุใหม่ที่ทบแล้ว
             userData.renewCount += 1;
             userData.status = 'active';
+            userData.notified3Days = false; // รีเซ็ตสถานะการแจ้งเตือน
             await userData.save();
         } else {
             userData = new User({ 
                 discordId: targetUser.id, 
                 roleId: roleId, 
-                expireDate: newExpireDate 
+                expireDate: newExpireDate,
+                notified3Days: false
             });
             await userData.save();
         }
@@ -61,12 +63,27 @@ module.exports = {
         const embed = new EmbedBuilder()
             .setColor('#00ff9f')
             .setTitle('✅ อนุมัติสถานะ VIP เรียบร้อย')
-            .setDescription(`เพิ่มสถานะให้ <@${targetUser.id}> เป็นเวลา ${duration} วัน`)
+            .setDescription(`เพิ่มสถานะให้ <@${targetUser.id}> เป็นเวลา **${duration} วัน**`)
             .addFields(
-                { name: '📅 วันหมดอายุใหม่ (ทบวันให้แล้ว)', value: `<t:${Math.floor(newExpireDate.getTime() / 1000)}:F>` },
+                { name: '📅 วันหมดอายุใหม่', value: `<t:${Math.floor(newExpireDate.getTime() / 1000)}:F>` },
                 { name: '🔄 สะสมการต่ออายุ', value: `${userData.renewCount} ครั้ง` }
-            );
+            )
+            .setTimestamp()
+            .setFooter({ text: 'Signal Bot • ระบบจัดการสมาชิก VIP', iconURL: interaction.guild.iconURL() });
 
         await interaction.reply({ embeds: [embed] });
+
+        // ส่ง DM หาลูกค้าเพื่อแจ้งเตือนว่าต่ออายุสำเร็จ (ตกแต่งให้สวยงาม)
+        try {
+            const dmEmbed = new EmbedBuilder()
+                .setColor('#00ff9f')
+                .setTitle('🎉 ยินดีต้อนรับสู่ห้อง VIP!')
+                .setDescription(`แอดมินได้ทำการอนุมัติสถานะ **VIP** ของคุณเรียบร้อยแล้วครับ\n\n> **ระยะเวลา:** ${duration} วัน\n> **วันหมดอายุ:** <t:${Math.floor(newExpireDate.getTime() / 1000)}:D>`)
+                .setTimestamp()
+                .setFooter({ text: 'ขอให้โชคดีในการเทรดครับ 🚀' });
+            await member.send({ embeds: [dmEmbed] });
+        } catch (err) {
+            console.log(`ไม่สามารถส่ง DM หา ${targetUser.id} ได้`);
+        }
     }
 };

@@ -29,16 +29,17 @@ module.exports = {
         const embed = new EmbedBuilder()
             .setColor('#ffeb3b')
             .setTitle(`⚡ SIGNAL ALERT: ${pair}`)
+            .setDescription(`> 📊 **วิเคราะห์แนวโน้ม:**\n> ${reason}`)
             .addFields(
                 { name: '📍 Action', value: `**${type}**`, inline: true },
-                { name: '🎯 Entry', value: `${entry}`, inline: true },
+                { name: '🎯 Entry', value: `**${entry}**`, inline: true },
                 { name: '\u200B', value: '\u200B', inline: true },
-                { name: '🛑 Stop Loss (SL)', value: `${sl}`, inline: true },
-                { name: '✅ Take Profit (TP)', value: `${tp}`, inline: true },
-                { name: '📝 Analysis Note', value: `${reason}` }
+                { name: '🛑 Stop Loss (SL)', value: `**${sl}**`, inline: true },
+                { name: '✅ Take Profit (TP)', value: `**${tp}**`, inline: true },
+                { name: '\u200B', value: '\u200B', inline: true }
             )
             .setTimestamp()
-            .setFooter({ text: '@VIP Trade at your own risk • การลงทุนมีความเสี่ยง เป็นแค่การแชร์มุมมอง' });
+            .setFooter({ text: 'VIP Trade • การลงทุนมีความเสี่ยง', iconURL: interaction.guild.iconURL() });
 
         if (chartImage) embed.setImage(chartImage.url);
 

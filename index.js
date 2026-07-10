@@ -73,8 +73,9 @@ function startCronJobs() {
                         const expireDMEmbed = new EmbedBuilder()
                             .setColor('#ff0000')
                             .setTitle('❌ แจ้งเตือน: สถานะ VIP หมดอายุ')
-                            .setDescription('สถานะสมาชิก VIP ของคุณหมดอายุแล้วครับ ระบบได้ทำการดึงยศ VIP ออกเรียบร้อย\n\nหากต้องการรับ Signal และเข้าถึงห้อง VIP ต่อ สามารถติดต่อแอดมินเพื่อต่ออายุได้เลยครับ 🙏')
-                            .setTimestamp();
+                            .setDescription('> สถานะสมาชิก VIP ของคุณหมดอายุแล้วครับ ระบบได้ทำการดึงยศ VIP ออกเรียบร้อย\n\n**หากต้องการรับ Signal และเข้าถึงห้อง VIP ต่อ สามารถติดต่อแอดมินเพื่อต่ออายุได้เลยครับ 🙏**')
+                            .setTimestamp()
+                            .setFooter({ text: 'Signal Bot • หมดอายุการใช้งาน' });
                         await member.send({ embeds: [expireDMEmbed] });
                     } catch (dmErr) {
                         console.log(`ไม่สามารถส่ง DM หา ${user.discordId} ได้`);
@@ -96,6 +97,7 @@ function startCronJobs() {
             } 
             // 2. เช็คแจ้งเตือนล่วงหน้า 3 วัน
             else if (
+                !user.notified3Days &&
                 expireDate.getDate() === threeDaysFromNow.getDate() &&
                 expireDate.getMonth() === threeDaysFromNow.getMonth() &&
                 expireDate.getFullYear() === threeDaysFromNow.getFullYear()
@@ -103,12 +105,17 @@ function startCronJobs() {
                 try {
                     const member = await guild.members.fetch(user.discordId);
                     const warnEmbed = new EmbedBuilder()
-                        .setColor('#00ff9f')
+                        .setColor('#ffaa00')
                         .setTitle('⚠️ แจ้งเตือน: สมาชิก VIP ของคุณใกล้หมดอายุ')
-                        .setDescription('แพ็กเกจ VIP ของคุณจะหมดอายุในอีก **3 วัน** รีบต่ออายุก่อนพลาดจุดเข้าสำคัญนะครับ');
+                        .setDescription('> แพ็กเกจ VIP ของคุณจะหมดอายุในอีก **3 วัน**\n\nรีบต่ออายุก่อนพลาดจุดเข้าสำคัญนะครับ 🚀')
+                        .setTimestamp()
+                        .setFooter({ text: 'Signal Bot • แจ้งเตือนล่วงหน้า' });
                     
                     try {
                         await member.send({ embeds: [warnEmbed] });
+                        // อัปเดตสถานะว่าแจ้งเตือนแล้วเพื่อไม่ให้สแปม
+                        user.notified3Days = true;
+                        await user.save();
                     } catch (dmErr) {
                         console.log(`ไม่สามารถส่ง DM แจ้งเตือน 3 วัน หา ${user.discordId} ได้`);
                     }
@@ -124,7 +131,7 @@ function startCronJobs() {
                         await logChannel.send({ embeds: [logWarnEmbed] });
                     }
                 } catch (err) {
-                    console.log(`ไม่สามารถส่ง DM แจ้งเตือน 3 วันหา ${user.discordId} ได้`);
+                    console.log(`ไม่สามารถจัดการแจ้งเตือน 3 วันให้ ${user.discordId} ได้`, err);
                 }
             }
         }
