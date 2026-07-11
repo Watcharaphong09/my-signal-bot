@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Collection, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const mongoose = require('mongoose');
 const cron = require('node-cron');
 const fs = require('fs');
@@ -45,7 +45,7 @@ client.on('interactionCreate', async interaction => {
             await command.execute(interaction);
         } catch (error) {
             console.error(error);
-            await interaction.reply({ content: 'เกิดข้อผิดพลาดในการรันคำสั่งนี้!', ephemeral: true });
+            await interaction.reply({ content: 'เกิดข้อผิดพลาดในการรันคำสั่งนี้!', flags: MessageFlags.Ephemeral });
         }
     } else if (interaction.isModalSubmit()) {
         if (interaction.customId.startsWith('signal_modal_')) {
@@ -70,7 +70,7 @@ client.on('interactionCreate', async interaction => {
             const fullTp = fullTpStr ? parseFloat(fullTpStr) : null;
 
             if (isNaN(entry) || isNaN(sl) || isNaN(tp1)) {
-                return interaction.reply({ content: '❌ กรุณากรอกราคาเป็นตัวเลขเท่านั้น (Entry, SL, TP1)', ephemeral: true });
+                return interaction.reply({ content: '❌ กรุณากรอกราคาเป็นตัวเลขเท่านั้น (Entry, SL, TP1)', flags: MessageFlags.Ephemeral });
             }
 
             const embedColor = direction === 'BUY' ? '#00ff9f' : '#ff3333';
@@ -131,7 +131,7 @@ client.on('interactionCreate', async interaction => {
         }
     } else if (interaction.isButton()) {
         if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-            return interaction.reply({ content: 'คุณไม่มีสิทธิ์ใช้งานปุ่มนี้!', ephemeral: true });
+            return interaction.reply({ content: 'คุณไม่มีสิทธิ์ใช้งานปุ่มนี้!', flags: MessageFlags.Ephemeral });
         }
 
         if (interaction.customId.startsWith('btn_')) {
@@ -140,11 +140,11 @@ client.on('interactionCreate', async interaction => {
             
             const tradeLog = await TradeLog.findOne({ messageId });
             if (!tradeLog) {
-                return interaction.reply({ content: 'ไม่พบข้อมูล Signal นี้ในระบบ Database', ephemeral: true });
+                return interaction.reply({ content: 'ไม่พบข้อมูล Signal นี้ในระบบ Database', flags: MessageFlags.Ephemeral });
             }
 
             if (tradeLog.isClosed) {
-                return interaction.reply({ content: 'ออเดอร์นี้ถูกปิดไปแล้ว!', ephemeral: true });
+                return interaction.reply({ content: 'ออเดอร์นี้ถูกปิดไปแล้ว!', flags: MessageFlags.Ephemeral });
             }
 
             if (btnType === 'alertbe') {
@@ -270,7 +270,7 @@ client.on('interactionCreate', async interaction => {
                 reply: { messageReference: messageId }
             });
             
-            await interaction.reply({ content: `✅ อัปเดตสถานะสำเร็จ`, ephemeral: true });
+            await interaction.reply({ content: `✅ อัปเดตสถานะสำเร็จ`, flags: MessageFlags.Ephemeral });
         }
     } else if (interaction.isModalSubmit() && interaction.customId.startsWith('close_modal_')) {
         const messageId = interaction.customId.replace('close_modal_', '');
@@ -278,12 +278,12 @@ client.on('interactionCreate', async interaction => {
         const closePrice = parseFloat(closePriceStr);
 
         if (isNaN(closePrice)) {
-            return interaction.reply({ content: '❌ กรุณากรอกราคาปิดเป็นตัวเลข', ephemeral: true });
+            return interaction.reply({ content: '❌ กรุณากรอกราคาปิดเป็นตัวเลข', flags: MessageFlags.Ephemeral });
         }
 
         const tradeLog = await TradeLog.findOne({ messageId });
         if (!tradeLog || tradeLog.isClosed) {
-            return interaction.reply({ content: 'ออเดอร์นี้ถูกปิดไปแล้วหรือไม่พบข้อมูล', ephemeral: true });
+            return interaction.reply({ content: 'ออเดอร์นี้ถูกปิดไปแล้วหรือไม่พบข้อมูล', flags: MessageFlags.Ephemeral });
         }
 
         const entry = tradeLog.entry;
@@ -330,7 +330,7 @@ client.on('interactionCreate', async interaction => {
             reply: { messageReference: messageId }
         });
         
-        await interaction.reply({ content: `✅ อัปเดตสถานะ (Manual Close) สำเร็จ`, ephemeral: true });
+        await interaction.reply({ content: `✅ อัปเดตสถานะ (Manual Close) สำเร็จ`, flags: MessageFlags.Ephemeral });
     }
 });
 

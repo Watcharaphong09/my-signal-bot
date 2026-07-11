@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags } = require('discord.js');
 const TradeLog = require('../models/TradeLog');
 
 module.exports = {
@@ -13,6 +13,6 @@ module.exports = {
             .setColor('#00ff9f')
             .setDescription('✅ Successfully cleared all trade records. The database is ready for the new week!');
             
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     },
 };

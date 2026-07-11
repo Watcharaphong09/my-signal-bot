@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 const User = require('../models/User');
 
 module.exports = {
@@ -13,7 +13,7 @@ module.exports = {
         const userData = await User.findOne({ discordId: targetUser.id });
 
         if (!userData) {
-            return await interaction.reply({ content: `❌ ไม่พบข้อมูลสมาชิก VIP ของ <@${targetUser.id}> ในระบบ`, ephemeral: true });
+            return await interaction.reply({ content: `❌ ไม่พบข้อมูลสมาชิก VIP ของ <@${targetUser.id}> ในระบบ`, flags: MessageFlags.Ephemeral });
         }
 
         const today = new Date();
