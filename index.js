@@ -26,6 +26,12 @@ mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('🍃 Connected to MongoDB Atlas'))
     .catch(err => console.error('MongoDB Connection Error:', err));
 
+function getMultiplier(asset) {
+    if (['XAUUSD'].includes(asset)) return 100; // $1 = 100 points
+    if (['EURUSD', 'GBPUSD'].includes(asset)) return 100000;
+    return 1; // BTCUSD, US30, NASDAQ
+}
+
 client.once('ready', () => {
     console.log(`🤖 Bot is online as ${client.user.tag}`);
     startCronJobs();
@@ -154,14 +160,15 @@ client.on('interactionCreate', async interaction => {
 
             const entry = tradeLog.entry;
             const sl = tradeLog.sl;
-            const risk = Math.abs(entry - sl);
+            const multiplier = getMultiplier(tradeLog.asset);
+            const riskPoints = Math.abs(entry - sl) * multiplier;
             
             let statusText = '';
             let color = tradeLog.direction === 'BUY' ? '#00ff9f' : '#ff3333'; // Default to match direction
             let disableButtons = false;
 
             if (btnType === 'sl') {
-                tradeLog.points = tradeLog.direction === 'BUY' ? sl - entry : entry - sl;
+                tradeLog.points = -riskPoints;
                 tradeLog.rr = -1;
                 statusText = 'Hit SL 🛑';
                 color = '#ff3333';
@@ -185,8 +192,8 @@ client.on('interactionCreate', async interaction => {
                     color = '#00ff9f';
                 }
 
-                tradeLog.points = tradeLog.direction === 'BUY' ? tpPrice - entry : entry - tpPrice;
-                tradeLog.rr = risk > 0 ? (tradeLog.points / risk) : 0;
+                tradeLog.points = Math.abs(tpPrice - entry) * multiplier;
+                tradeLog.rr = riskPoints > 0 ? (tradeLog.points / riskPoints) : 0;
             }
 
             tradeLog.rr = parseFloat(tradeLog.rr.toFixed(2));
@@ -221,7 +228,10 @@ client.on('interactionCreate', async interaction => {
             await message.edit({ embeds: [embed], components: newComponents });
             
             const channel = interaction.channel;
-            await channel.send(`<@&${process.env.VIP_ROLE_ID}> ⚡ **UPDATE:** ${tradeLog.asset} ${statusText}`);
+            await channel.send({ 
+                content: `<@&${process.env.VIP_ROLE_ID}> ⚡ **UPDATE:** ${tradeLog.asset} ${statusText}`,
+                reply: { messageReference: messageId }
+            });
             
             await interaction.reply({ content: `✅ อัปเดตสถานะสำเร็จ`, ephemeral: true });
         }
@@ -241,10 +251,12 @@ client.on('interactionCreate', async interaction => {
 
         const entry = tradeLog.entry;
         const sl = tradeLog.sl;
-        const risk = Math.abs(entry - sl);
+        const multiplier = getMultiplier(tradeLog.asset);
+        const riskPoints = Math.abs(entry - sl) * multiplier;
         
-        tradeLog.points = tradeLog.direction === 'BUY' ? closePrice - entry : entry - closePrice;
-        tradeLog.rr = risk > 0 ? (tradeLog.points / risk) : 0;
+        const priceDiff = tradeLog.direction === 'BUY' ? closePrice - entry : entry - closePrice;
+        tradeLog.points = priceDiff * multiplier;
+        tradeLog.rr = riskPoints > 0 ? (tradeLog.points / riskPoints) : 0;
         
         tradeLog.rr = parseFloat(tradeLog.rr.toFixed(2));
         tradeLog.points = parseFloat(tradeLog.points.toFixed(2));
@@ -276,7 +288,10 @@ client.on('interactionCreate', async interaction => {
         await message.edit({ embeds: [embed], components: newComponents });
         
         const channel = interaction.channel;
-        await channel.send(`<@&${process.env.VIP_ROLE_ID}> 🛑 **MANUAL CLOSE:** ${tradeLog.asset} closed at ${closePrice}`);
+        await channel.send({
+            content: `<@&${process.env.VIP_ROLE_ID}> 🛑 **MANUAL CLOSE:** ${tradeLog.asset} closed at ${closePrice}`,
+            reply: { messageReference: messageId }
+        });
         
         await interaction.reply({ content: `✅ อัปเดตสถานะ (Manual Close) สำเร็จ`, ephemeral: true });
     }
