@@ -97,18 +97,22 @@ client.on('interactionCreate', async interaction => {
                 interaction.client.imageCache.delete(interaction.user.id); // Clear cache after use
             }
 
-            const row = new ActionRowBuilder();
-            row.addComponents(new ButtonBuilder().setCustomId('btn_tp1').setLabel('🎯 TP1').setStyle(ButtonStyle.Success));
-            if (tp2) row.addComponents(new ButtonBuilder().setCustomId('btn_tp2').setLabel('🎯 TP2').setStyle(ButtonStyle.Success));
-            if (fullTp) row.addComponents(new ButtonBuilder().setCustomId('btn_fulltp').setLabel('🚀 Full TP').setStyle(ButtonStyle.Success));
-            row.addComponents(new ButtonBuilder().setCustomId('btn_sl').setLabel('🛑 Hit SL').setStyle(ButtonStyle.Danger));
-            row.addComponents(new ButtonBuilder().setCustomId('btn_be').setLabel('🛡️ BE').setStyle(ButtonStyle.Secondary));
-            row.addComponents(new ButtonBuilder().setCustomId('btn_close').setLabel('⏹️ Close').setStyle(ButtonStyle.Primary));
+            const row1 = new ActionRowBuilder();
+            const row2 = new ActionRowBuilder();
+            
+            row1.addComponents(new ButtonBuilder().setCustomId('btn_tp1').setLabel('🎯 TP1').setStyle(ButtonStyle.Success));
+            if (tp2) row1.addComponents(new ButtonBuilder().setCustomId('btn_tp2').setLabel('🎯 TP2').setStyle(ButtonStyle.Success));
+            if (fullTp) row1.addComponents(new ButtonBuilder().setCustomId('btn_fulltp').setLabel('🚀 Full TP').setStyle(ButtonStyle.Success));
+            
+            row2.addComponents(new ButtonBuilder().setCustomId('btn_sl').setLabel('🛑 Hit SL').setStyle(ButtonStyle.Danger));
+            row2.addComponents(new ButtonBuilder().setCustomId('btn_alertbe').setLabel('🔔 แจ้ง BE').setStyle(ButtonStyle.Secondary));
+            row2.addComponents(new ButtonBuilder().setCustomId('btn_be').setLabel('🛡️ BE').setStyle(ButtonStyle.Secondary));
+            row2.addComponents(new ButtonBuilder().setCustomId('btn_close').setLabel('⏹️ Close').setStyle(ButtonStyle.Primary));
 
             const sentMessage = await interaction.reply({ 
                 content: `<@&${process.env.VIP_ROLE_ID}> ⚡ สัญญาณเทรดใหม่มาแล้วครับ!`,
                 embeds: [embed],
-                components: [row],
+                components: [row1, row2],
                 fetchReply: true
             });
 
@@ -141,6 +145,39 @@ client.on('interactionCreate', async interaction => {
 
             if (tradeLog.isClosed) {
                 return interaction.reply({ content: 'ออเดอร์นี้ถูกปิดไปแล้ว!', ephemeral: true });
+            }
+
+            if (btnType === 'alertbe') {
+                const message = await interaction.channel.messages.fetch(messageId);
+                const embed = EmbedBuilder.from(message.embeds[0]);
+                
+                let resultField = embed.data.fields.find(f => f.name === '📊 Result');
+                if (resultField) {
+                    if (!resultField.value.includes('(กันหน้าทุนแล้ว 🛡️)')) {
+                        resultField.value = resultField.value.replace(/Status: \*\*(.*?)\*\*/, 'Status: **$1 (กันหน้าทุนแล้ว 🛡️)**');
+                        // Also update embed fields
+                        const newFields = embed.data.fields.map(f => f.name === '📊 Result' ? resultField : f);
+                        embed.setFields(newFields);
+                    }
+                } else {
+                    embed.addFields({
+                        name: '📊 Result',
+                        value: `Status: **${tradeLog.status} (กันหน้าทุนแล้ว 🛡️)**\nPoints: **0**\nRR: **0R**`,
+                        inline: false
+                    });
+                }
+                
+                if (!tradeLog.status.includes('(กันหน้าทุนแล้ว 🛡️)')) {
+                    tradeLog.status = `${tradeLog.status} (กันหน้าทุนแล้ว 🛡️)`;
+                    await tradeLog.save();
+                }
+                
+                await interaction.update({ embeds: [embed] });
+                
+                return interaction.channel.send({ 
+                    content: `<@&${process.env.VIP_ROLE_ID}> 🛡️ **UPDATE:** ออเดอร์นี้กันหน้าทุน (Break Even) เรียบร้อยแล้วนะครับ ปล่อยรันต่อได้เลย!`, 
+                    reply: { messageReference: interaction.message.id } 
+                });
             }
 
             if (btnType === 'close') {
