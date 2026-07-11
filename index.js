@@ -1,10 +1,11 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Collection, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits } = require('discord.js');
 const mongoose = require('mongoose');
 const cron = require('node-cron');
 const fs = require('fs');
 const path = require('path');
 const User = require('./models/User');
+const TradeLog = require('./models/TradeLog');
 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages]
@@ -31,14 +32,151 @@ client.once('ready', () => {
 });
 
 client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand()) return;
-    const command = client.commands.get(interaction.commandName);
-    if (!command) return;
-    try {
-        await command.execute(interaction);
-    } catch (error) {
-        console.error(error);
-        await interaction.reply({ content: 'เกิดข้อผิดพลาดในการรันคำสั่งนี้!', ephemeral: true });
+    if (interaction.isChatInputCommand()) {
+        const command = client.commands.get(interaction.commandName);
+        if (!command) return;
+        try {
+            await command.execute(interaction);
+        } catch (error) {
+            console.error(error);
+            await interaction.reply({ content: 'เกิดข้อผิดพลาดในการรันคำสั่งนี้!', ephemeral: true });
+        }
+    } else if (interaction.isModalSubmit()) {
+        if (interaction.customId === 'signal_modal') {
+            const asset = interaction.fields.getTextInputValue('assetInput');
+            const entry = interaction.fields.getTextInputValue('entryInput');
+            const sl = interaction.fields.getTextInputValue('slInput');
+            const tp = interaction.fields.getTextInputValue('tpInput');
+            let image = '';
+            try {
+                image = interaction.fields.getTextInputValue('imageInput');
+            } catch (e) {} // It's not required, might throw error if not present depending on djs version
+
+            const embed = new EmbedBuilder()
+                .setColor('#00ff9f') // Premium Neon Green
+                .setTitle(`⚡ SIGNAL ALERT: ${asset}`)
+                .addFields(
+                    { name: '🎯 Entry', value: `**${entry}**`, inline: true },
+                    { name: '🛑 Stop Loss (SL)', value: `**${sl}**`, inline: true },
+                    { name: '🚀 Take Profit', value: `**${tp}**`, inline: false }
+                )
+                .setTimestamp()
+                .setFooter({ text: 'VIP Trade • การลงทุนมีความเสี่ยง', iconURL: interaction.guild?.iconURL() || null });
+            
+            if (image) {
+                try { embed.setImage(image); } catch (e) { console.log('Invalid image URL provided'); }
+            }
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('btn_tp1').setLabel('🎯 TP1').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId('btn_tp2').setLabel('🎯 TP2').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId('btn_fulltp').setLabel('🚀 Full TP').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId('btn_sl').setLabel('🛑 Hit SL').setStyle(ButtonStyle.Danger),
+                new ButtonBuilder().setCustomId('btn_be').setLabel('🛡️ BE').setStyle(ButtonStyle.Secondary)
+            );
+
+            const sentMessage = await interaction.reply({ 
+                content: `<@&${process.env.VIP_ROLE_ID}> ⚡ สัญญาณเทรดใหม่มาแล้วครับ!`,
+                embeds: [embed],
+                components: [row],
+                fetchReply: true
+            });
+
+            const tradeLog = new TradeLog({
+                messageId: sentMessage.id,
+                asset: asset
+            });
+            await tradeLog.save();
+
+        } else if (interaction.customId.startsWith('result_modal_')) {
+            const parts = interaction.customId.split('_');
+            const resultType = parts[2]; // tp1, tp2, fulltp, sl, be
+            const messageId = parts.slice(3).join('_'); // Get messageId
+
+            const pointsStr = interaction.fields.getTextInputValue('pointsInput');
+            const rrStr = interaction.fields.getTextInputValue('rrInput');
+            const points = parseFloat(pointsStr) || 0;
+            const rr = parseFloat(rrStr) || 0;
+
+            const tradeLog = await TradeLog.findOne({ messageId });
+            if (!tradeLog) {
+                return interaction.reply({ content: 'ไม่พบข้อมูล Signal นี้ในระบบ Database', ephemeral: true });
+            }
+
+            const statusMap = {
+                'tp1': 'TP1',
+                'tp2': 'TP2',
+                'fulltp': 'Full TP',
+                'sl': 'SL',
+                'be': 'BE'
+            };
+            tradeLog.status = statusMap[resultType];
+            tradeLog.points = points;
+            tradeLog.rr = rr;
+            await tradeLog.save();
+
+            const message = await interaction.channel.messages.fetch(messageId);
+            const embed = EmbedBuilder.from(message.embeds[0]);
+            
+            let color = '#00ff9f'; // Default Green
+            if (resultType === 'sl') color = '#ff0000'; // Red
+            else if (resultType === 'be') color = '#808080'; // Gray
+
+            embed.setColor(color);
+            embed.addFields({ 
+                name: '📊 Result', 
+                value: `Status: **${tradeLog.status}**\nPoints: **${points > 0 ? '+' : ''}${points}**\nRR: **${rr > 0 ? '+' : ''}${rr}**`, 
+                inline: false 
+            });
+
+            // Disable the clicked button, keep others active or disable all? Let's disable the clicked one.
+            const components = message.components;
+            const newComponents = components.map(row => {
+                return new ActionRowBuilder().addComponents(
+                    row.components.map(c => {
+                        const btn = ButtonBuilder.from(c);
+                        if (c.customId === `btn_${resultType}`) {
+                            btn.setDisabled(true);
+                        }
+                        return btn;
+                    })
+                );
+            });
+
+            await message.edit({ embeds: [embed], components: newComponents });
+            await interaction.reply({ content: 'อัปเดตสถานะสำเร็จ!', ephemeral: true });
+        }
+    } else if (interaction.isButton()) {
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return interaction.reply({ content: 'คุณไม่มีสิทธิ์ใช้งานปุ่มนี้!', ephemeral: true });
+        }
+
+        if (interaction.customId.startsWith('btn_')) {
+            const btnType = interaction.customId.split('_')[1]; // tp1, sl, etc.
+            
+            const modal = new ModalBuilder()
+                .setCustomId(`result_modal_${btnType}_${interaction.message.id}`)
+                .setTitle('📊 ระบุผลประกอบการ');
+
+            const pointsInput = new TextInputBuilder()
+                .setCustomId('pointsInput')
+                .setLabel('Points (e.g. 500, -200, 0)')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true);
+
+            const rrInput = new TextInputBuilder()
+                .setCustomId('rrInput')
+                .setLabel('RR (e.g. 1.5, -1, 0)')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true);
+
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(pointsInput),
+                new ActionRowBuilder().addComponents(rrInput)
+            );
+
+            await interaction.showModal(modal);
+        }
     }
 });
 

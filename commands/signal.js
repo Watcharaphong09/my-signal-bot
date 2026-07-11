@@ -1,80 +1,59 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, PermissionFlagsBits } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('signal')
         .setDescription('ส่งสัญญาณเทรดเข้าห้อง (เฉพาะแอดมิน)')
-        .addStringOption(option => option.setName('pair').setDescription('คู่เทรด เช่น XAUUSD').setRequired(true)
-            .addChoices(
-                { name: 'XAUUSD', value: 'XAUUSD' },
-                { name: 'BTCUSD', value: 'BTCUSD' },
-                { name: 'NASDAQ', value: 'NASDAQ' }
-            )
-        )
-        .addStringOption(option => option.setName('type').setDescription('ทิศทางออเดอร์').setRequired(true)
-            .addChoices({ name: '🟢 BUY', value: 'BUY' }, { name: '🔴 SELL', value: 'SELL' })
-        )
-        .addStringOption(option => option.setName('entry').setDescription('ราคาเข้า (Entry)').setRequired(true))
-        .addStringOption(option => option.setName('sl').setDescription('Stop Loss').setRequired(true))
-        .addStringOption(option => option.setName('full_tp').setDescription('FULL TP (กรอกเอง)').setRequired(true))
-        .addStringOption(option => option.setName('tp1').setDescription('Take Profit 1').setRequired(false)
-            .addChoices(
-                { name: '600 point', value: '600 point' },
-                { name: '1000 point', value: '1000 point' },
-                { name: '1500 point', value: '1500 point' },
-                { name: '2000 point', value: '2000 point' },
-                { name: '3000 point', value: '3000 point' }
-            )
-        )
-        .addStringOption(option => option.setName('tp2').setDescription('Take Profit 2').setRequired(false)
-            .addChoices(
-                { name: '600 point', value: '600 point' },
-                { name: '1000 point', value: '1000 point' },
-                { name: '1500 point', value: '1500 point' },
-                { name: '2000 point', value: '2000 point' },
-                { name: '3000 point', value: '3000 point' }
-            )
-        )
-        .addStringOption(option => option.setName('reason').setDescription('เหตุผลประกอบแนวคิด').setRequired(false))
-        .addAttachmentOption(option => option.setName('chart').setDescription('แนบรูปกราฟประกอบ').setRequired(false))
-        // 🔒 ล็อกคำสั่งนี้ให้เฉพาะคนที่มีสิทธิ์ Administrator เท่านั้นถึงจะเห็นและใช้งานได้
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
-        // (ไม่ต้องเขียนโค้ดเช็คยศแล้ว ให้รับค่าและส่ง Embed ได้เลย)
-        const pair = interaction.options.getString('pair');
-        const type = interaction.options.getString('type');
-        const entry = interaction.options.getString('entry');
-        const sl = interaction.options.getString('sl');
-        const full_tp = interaction.options.getString('full_tp');
-        const tp1 = interaction.options.getString('tp1');
-        const tp2 = interaction.options.getString('tp2');
-        const reason = interaction.options.getString('reason') || 'วิเคราะห์ตามโครงสร้างราคาปัจจุบัน';
-        const chartImage = interaction.options.getAttachment('chart');
+        // Create the modal
+        const modal = new ModalBuilder()
+            .setCustomId('signal_modal')
+            .setTitle('⚡ Create New Signal');
 
-        const embed = new EmbedBuilder()
-            .setColor('#ffeb3b')
-            .setTitle(`⚡ SIGNAL ALERT: ${pair}`)
-            .setDescription(`> 📊 **วิเคราะห์แนวโน้ม:**\n> ${reason}`)
-            .addFields(
-                { name: '📍 Action', value: `**${type}**`, inline: true },
-                { name: '🎯 Entry', value: `**${entry}**`, inline: true },
-                { name: '🛑 Stop Loss (SL)', value: `**${sl}**`, inline: true }
-            );
+        // Create the text input components
+        const assetInput = new TextInputBuilder()
+            .setCustomId('assetInput')
+            .setLabel('Asset & Direction (e.g., XAUUSD BUY)')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true);
 
-        if (tp1) embed.addFields({ name: '✅ TP1', value: `**${tp1}**`, inline: true });
-        if (tp2) embed.addFields({ name: '✅ TP2', value: `**${tp2}**`, inline: true });
-        embed.addFields({ name: '🚀 FULL TP', value: `**${full_tp}**`, inline: true });
+        const entryInput = new TextInputBuilder()
+            .setCustomId('entryInput')
+            .setLabel('Entry Price')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true);
 
-        embed.setTimestamp()
-             .setFooter({ text: 'VIP Trade • การลงทุนมีความเสี่ยง', iconURL: interaction.guild.iconURL() });
+        const slInput = new TextInputBuilder()
+            .setCustomId('slInput')
+            .setLabel('Stop Loss (SL)')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true);
 
-        if (chartImage) embed.setImage(chartImage.url);
+        const tpInput = new TextInputBuilder()
+            .setCustomId('tpInput')
+            .setLabel('Take Profit Targets (e.g. 2000, 2010)')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true);
 
-        // แท็กยศที่ต้องการ (ดึง ID จาก VIP_ROLE_ID ใน .env)
-        await interaction.reply({ 
-            content: `<@&${process.env.VIP_ROLE_ID}> ⚡ สัญญาณเทรดใหม่มาแล้วครับ!`,
-            embeds: [embed] 
-        });
+        const imageInput = new TextInputBuilder()
+            .setCustomId('imageInput')
+            .setLabel('Image URL (Optional)')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(false);
+
+        // An action row only holds one text input, so you need one action row per text input.
+        const firstActionRow = new ActionRowBuilder().addComponents(assetInput);
+        const secondActionRow = new ActionRowBuilder().addComponents(entryInput);
+        const thirdActionRow = new ActionRowBuilder().addComponents(slInput);
+        const fourthActionRow = new ActionRowBuilder().addComponents(tpInput);
+        const fifthActionRow = new ActionRowBuilder().addComponents(imageInput);
+
+        // Add inputs to the modal
+        modal.addComponents(firstActionRow, secondActionRow, thirdActionRow, fourthActionRow, fifthActionRow);
+
+        // Show the modal to the user
+        await interaction.showModal(modal);
     }
 };
