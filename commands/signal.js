@@ -69,9 +69,9 @@ module.exports = {
 
         const fullTpInput = new TextInputBuilder()
             .setCustomId('fullTpInput')
-            .setLabel('Full TP Price (Optional)')
+            .setLabel('Full TP Price (Required)')
             .setStyle(TextInputStyle.Short)
-            .setRequired(false);
+            .setRequired(true);
 
         modal.addComponents(
             new ActionRowBuilder().addComponents(entryInput),

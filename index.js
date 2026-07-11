@@ -67,8 +67,9 @@ client.on('interactionCreate', async interaction => {
                 return interaction.reply({ content: '❌ กรุณากรอกราคาเป็นตัวเลขเท่านั้น (Entry, SL, TP1)', ephemeral: true });
             }
 
+            const embedColor = direction === 'BUY' ? '#00ff9f' : '#ff3333';
             const embed = new EmbedBuilder()
-                .setColor('#00ff9f') // Premium Neon Green
+                .setColor(embedColor)
                 .setTitle(`⚡ SIGNAL ALERT: ${asset} ${direction}`)
                 .addFields(
                     { name: '🎯 Entry', value: `**${entry}**`, inline: true },
@@ -96,6 +97,7 @@ client.on('interactionCreate', async interaction => {
             if (fullTp) row.addComponents(new ButtonBuilder().setCustomId('btn_fulltp').setLabel('🚀 Full TP').setStyle(ButtonStyle.Success));
             row.addComponents(new ButtonBuilder().setCustomId('btn_sl').setLabel('🛑 Hit SL').setStyle(ButtonStyle.Danger));
             row.addComponents(new ButtonBuilder().setCustomId('btn_be').setLabel('🛡️ BE').setStyle(ButtonStyle.Secondary));
+            row.addComponents(new ButtonBuilder().setCustomId('btn_close').setLabel('⏹️ Close').setStyle(ButtonStyle.Primary));
 
             const sentMessage = await interaction.reply({ 
                 content: `<@&${process.env.VIP_ROLE_ID}> ⚡ สัญญาณเทรดใหม่มาแล้วครับ!`,
@@ -123,7 +125,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (interaction.customId.startsWith('btn_')) {
-            const btnType = interaction.customId.split('_')[1]; // tp1, tp2, fulltp, sl, be
+            const btnType = interaction.customId.split('_')[1]; // tp1, tp2, fulltp, sl, be, close
             const messageId = interaction.message.id;
             
             const tradeLog = await TradeLog.findOne({ messageId });
@@ -131,73 +133,152 @@ client.on('interactionCreate', async interaction => {
                 return interaction.reply({ content: 'ไม่พบข้อมูล Signal นี้ในระบบ Database', ephemeral: true });
             }
 
-            // AUTO MATH
+            if (tradeLog.isClosed) {
+                return interaction.reply({ content: 'ออเดอร์นี้ถูกปิดไปแล้ว!', ephemeral: true });
+            }
+
+            if (btnType === 'close') {
+                const closeModal = new ModalBuilder()
+                    .setCustomId(`close_modal_${messageId}`)
+                    .setTitle('⏹️ Manual Close');
+                
+                const closePriceInput = new TextInputBuilder()
+                    .setCustomId('closePrice')
+                    .setLabel('Closing Price')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+                
+                closeModal.addComponents(new ActionRowBuilder().addComponents(closePriceInput));
+                return interaction.showModal(closeModal);
+            }
+
             const entry = tradeLog.entry;
             const sl = tradeLog.sl;
             const risk = Math.abs(entry - sl);
             
-            let points = 0;
-            let rr = 0;
             let statusText = '';
-            let color = '#00ff9f'; // Default green
+            let color = tradeLog.direction === 'BUY' ? '#00ff9f' : '#ff3333'; // Default to match direction
+            let disableButtons = false;
 
             if (btnType === 'sl') {
-                points = -Math.abs(entry - sl);
-                rr = -1;
+                tradeLog.points = tradeLog.direction === 'BUY' ? sl - entry : entry - sl;
+                tradeLog.rr = -1;
                 statusText = 'Hit SL 🛑';
                 color = '#ff3333';
+                tradeLog.isClosed = true;
+                disableButtons = true;
             } else if (btnType === 'be') {
-                points = 0;
-                rr = 0;
                 statusText = 'Break Even 🛡️';
                 color = '#808080';
+                tradeLog.isClosed = true;
+                disableButtons = true;
             } else {
-                // It's a TP
+                // TP
                 let tpPrice = 0;
                 if (btnType === 'tp1') { tpPrice = tradeLog.tp1; statusText = 'TP1 Hit 🎯'; }
                 if (btnType === 'tp2') { tpPrice = tradeLog.tp2; statusText = 'TP2 Hit 🎯'; }
-                if (btnType === 'fulltp') { tpPrice = tradeLog.fullTp; statusText = 'Full TP Hit 🚀'; }
+                if (btnType === 'fulltp') { 
+                    tpPrice = tradeLog.fullTp; 
+                    statusText = 'Full TP Hit 🚀'; 
+                    tradeLog.isClosed = true;
+                    disableButtons = true;
+                    color = '#00ff9f';
+                }
 
-                points = Math.abs(tpPrice - entry);
-                rr = risk > 0 ? (points / risk) : 0;
+                tradeLog.points = tradeLog.direction === 'BUY' ? tpPrice - entry : entry - tpPrice;
+                tradeLog.rr = risk > 0 ? (tradeLog.points / risk) : 0;
             }
 
-            // Format numbers
-            rr = parseFloat(rr.toFixed(2));
-            points = parseFloat(points.toFixed(2));
-
+            tradeLog.rr = parseFloat(tradeLog.rr.toFixed(2));
+            tradeLog.points = parseFloat(tradeLog.points.toFixed(2));
             tradeLog.status = statusText;
-            tradeLog.points = points;
-            tradeLog.rr = rr;
+            
             await tradeLog.save();
 
             const message = await interaction.channel.messages.fetch(messageId);
             const embed = EmbedBuilder.from(message.embeds[0]);
             
             embed.setColor(color);
-            embed.addFields({ 
+            
+            // Overwrite existing Result field if any, else add new
+            const newFields = embed.data.fields.filter(f => f.name !== '📊 Result');
+            newFields.push({ 
                 name: '📊 Result', 
-                value: `Status: **${statusText}**\nPoints: **${points > 0 ? '+' : ''}${points}**\nRR: **${rr > 0 ? '+' : ''}${rr}R**`, 
+                value: `Status: **${statusText}**\nPoints: **${tradeLog.points > 0 ? '+' : ''}${tradeLog.points}**\nRR: **${tradeLog.rr > 0 ? '+' : ''}${tradeLog.rr}R**`, 
                 inline: false 
             });
+            embed.setFields(newFields);
 
-            // Disable the clicked button
-            const components = message.components;
-            const newComponents = components.map(row => {
-                return new ActionRowBuilder().addComponents(
-                    row.components.map(c => {
-                        const btn = ButtonBuilder.from(c);
-                        if (c.customId === `btn_${btnType}`) {
-                            btn.setDisabled(true);
-                        }
-                        return btn;
-                    })
-                );
-            });
+            let newComponents = message.components;
+            if (disableButtons) {
+                newComponents = message.components.map(row => {
+                    return new ActionRowBuilder().addComponents(
+                        row.components.map(c => ButtonBuilder.from(c).setDisabled(true))
+                    );
+                });
+            }
 
             await message.edit({ embeds: [embed], components: newComponents });
-            await interaction.reply({ content: `✅ อัปเดตสถานะสำเร็จ: ${statusText} (Points: ${points}, RR: ${rr})`, ephemeral: true });
+            
+            const channel = interaction.channel;
+            await channel.send(`<@&${process.env.VIP_ROLE_ID}> ⚡ **UPDATE:** ${tradeLog.asset} ${statusText}`);
+            
+            await interaction.reply({ content: `✅ อัปเดตสถานะสำเร็จ`, ephemeral: true });
         }
+    } else if (interaction.isModalSubmit() && interaction.customId.startsWith('close_modal_')) {
+        const messageId = interaction.customId.replace('close_modal_', '');
+        const closePriceStr = interaction.fields.getTextInputValue('closePrice');
+        const closePrice = parseFloat(closePriceStr);
+
+        if (isNaN(closePrice)) {
+            return interaction.reply({ content: '❌ กรุณากรอกราคาปิดเป็นตัวเลข', ephemeral: true });
+        }
+
+        const tradeLog = await TradeLog.findOne({ messageId });
+        if (!tradeLog || tradeLog.isClosed) {
+            return interaction.reply({ content: 'ออเดอร์นี้ถูกปิดไปแล้วหรือไม่พบข้อมูล', ephemeral: true });
+        }
+
+        const entry = tradeLog.entry;
+        const sl = tradeLog.sl;
+        const risk = Math.abs(entry - sl);
+        
+        tradeLog.points = tradeLog.direction === 'BUY' ? closePrice - entry : entry - closePrice;
+        tradeLog.rr = risk > 0 ? (tradeLog.points / risk) : 0;
+        
+        tradeLog.rr = parseFloat(tradeLog.rr.toFixed(2));
+        tradeLog.points = parseFloat(tradeLog.points.toFixed(2));
+        tradeLog.status = 'Manual Close ⏹️';
+        tradeLog.isClosed = true;
+
+        await tradeLog.save();
+
+        const message = await interaction.channel.messages.fetch(messageId);
+        const embed = EmbedBuilder.from(message.embeds[0]);
+        
+        const color = tradeLog.points > 0 ? '#00ff9f' : (tradeLog.points < 0 ? '#ff3333' : '#808080');
+        embed.setColor(color);
+        
+        const newFields = embed.data.fields.filter(f => f.name !== '📊 Result');
+        newFields.push({ 
+            name: '📊 Result', 
+            value: `Status: **${tradeLog.status}**\nPoints: **${tradeLog.points > 0 ? '+' : ''}${tradeLog.points}**\nRR: **${tradeLog.rr > 0 ? '+' : ''}${tradeLog.rr}R**`, 
+            inline: false 
+        });
+        embed.setFields(newFields);
+
+        const newComponents = message.components.map(row => {
+            return new ActionRowBuilder().addComponents(
+                row.components.map(c => ButtonBuilder.from(c).setDisabled(true))
+            );
+        });
+
+        await message.edit({ embeds: [embed], components: newComponents });
+        
+        const channel = interaction.channel;
+        await channel.send(`<@&${process.env.VIP_ROLE_ID}> 🛑 **MANUAL CLOSE:** ${tradeLog.asset} closed at ${closePrice}`);
+        
+        await interaction.reply({ content: `✅ อัปเดตสถานะ (Manual Close) สำเร็จ`, ephemeral: true });
     }
 });
 
