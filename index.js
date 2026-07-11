@@ -42,38 +42,60 @@ client.on('interactionCreate', async interaction => {
             await interaction.reply({ content: 'เกิดข้อผิดพลาดในการรันคำสั่งนี้!', ephemeral: true });
         }
     } else if (interaction.isModalSubmit()) {
-        if (interaction.customId === 'signal_modal') {
-            const asset = interaction.fields.getTextInputValue('assetInput');
-            const entry = interaction.fields.getTextInputValue('entryInput');
-            const sl = interaction.fields.getTextInputValue('slInput');
-            const tp = interaction.fields.getTextInputValue('tpInput');
-            let image = '';
-            try {
-                image = interaction.fields.getTextInputValue('imageInput');
-            } catch (e) {} // It's not required, might throw error if not present depending on djs version
+        if (interaction.customId.startsWith('signal_modal_')) {
+            const parts = interaction.customId.split('_');
+            const asset = parts[2];
+            const direction = parts[3];
+
+            const entryStr = interaction.fields.getTextInputValue('entryInput');
+            const slStr = interaction.fields.getTextInputValue('slInput');
+            const tp1Str = interaction.fields.getTextInputValue('tp1Input');
+            
+            let tp2Str = null;
+            try { tp2Str = interaction.fields.getTextInputValue('tp2Input'); } catch(e) {}
+            
+            let fullTpStr = null;
+            try { fullTpStr = interaction.fields.getTextInputValue('fullTpInput'); } catch(e) {}
+
+            const entry = parseFloat(entryStr);
+            const sl = parseFloat(slStr);
+            const tp1 = parseFloat(tp1Str);
+            const tp2 = tp2Str ? parseFloat(tp2Str) : null;
+            const fullTp = fullTpStr ? parseFloat(fullTpStr) : null;
+
+            if (isNaN(entry) || isNaN(sl) || isNaN(tp1)) {
+                return interaction.reply({ content: '❌ กรุณากรอกราคาเป็นตัวเลขเท่านั้น (Entry, SL, TP1)', ephemeral: true });
+            }
 
             const embed = new EmbedBuilder()
                 .setColor('#00ff9f') // Premium Neon Green
-                .setTitle(`⚡ SIGNAL ALERT: ${asset}`)
+                .setTitle(`⚡ SIGNAL ALERT: ${asset} ${direction}`)
                 .addFields(
                     { name: '🎯 Entry', value: `**${entry}**`, inline: true },
-                    { name: '🛑 Stop Loss (SL)', value: `**${sl}**`, inline: true },
-                    { name: '🚀 Take Profit', value: `**${tp}**`, inline: false }
-                )
-                .setTimestamp()
-                .setFooter({ text: 'VIP Trade • การลงทุนมีความเสี่ยง', iconURL: interaction.guild?.iconURL() || null });
+                    { name: '🛑 Stop Loss', value: `**${sl}**`, inline: true },
+                    { name: '\u200B', value: '\u200B', inline: true }, // Spacer
+                    { name: '🚀 TP1', value: `**${tp1}**`, inline: true }
+                );
+
+            if (tp2) embed.addFields({ name: '🚀 TP2', value: `**${tp2}**`, inline: true });
+            if (fullTp) embed.addFields({ name: '🌕 Full TP', value: `**${fullTp}**`, inline: true });
+
+            embed.setTimestamp()
+                 .setFooter({ text: 'VIP Trade • การลงทุนมีความเสี่ยง', iconURL: interaction.guild?.iconURL() || null });
             
-            if (image) {
-                try { embed.setImage(image); } catch (e) { console.log('Invalid image URL provided'); }
+            // Check image cache
+            if (interaction.client.imageCache && interaction.client.imageCache.has(interaction.user.id)) {
+                const imageUrl = interaction.client.imageCache.get(interaction.user.id);
+                try { embed.setImage(imageUrl); } catch (e) { console.log('Invalid image URL'); }
+                interaction.client.imageCache.delete(interaction.user.id); // Clear cache after use
             }
 
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('btn_tp1').setLabel('🎯 TP1').setStyle(ButtonStyle.Success),
-                new ButtonBuilder().setCustomId('btn_tp2').setLabel('🎯 TP2').setStyle(ButtonStyle.Success),
-                new ButtonBuilder().setCustomId('btn_fulltp').setLabel('🚀 Full TP').setStyle(ButtonStyle.Success),
-                new ButtonBuilder().setCustomId('btn_sl').setLabel('🛑 Hit SL').setStyle(ButtonStyle.Danger),
-                new ButtonBuilder().setCustomId('btn_be').setLabel('🛡️ BE').setStyle(ButtonStyle.Secondary)
-            );
+            const row = new ActionRowBuilder();
+            row.addComponents(new ButtonBuilder().setCustomId('btn_tp1').setLabel('🎯 TP1').setStyle(ButtonStyle.Success));
+            if (tp2) row.addComponents(new ButtonBuilder().setCustomId('btn_tp2').setLabel('🎯 TP2').setStyle(ButtonStyle.Success));
+            if (fullTp) row.addComponents(new ButtonBuilder().setCustomId('btn_fulltp').setLabel('🚀 Full TP').setStyle(ButtonStyle.Success));
+            row.addComponents(new ButtonBuilder().setCustomId('btn_sl').setLabel('🛑 Hit SL').setStyle(ButtonStyle.Danger));
+            row.addComponents(new ButtonBuilder().setCustomId('btn_be').setLabel('🛡️ BE').setStyle(ButtonStyle.Secondary));
 
             const sentMessage = await interaction.reply({ 
                 content: `<@&${process.env.VIP_ROLE_ID}> ⚡ สัญญาณเทรดใหม่มาแล้วครับ!`,
@@ -84,33 +106,67 @@ client.on('interactionCreate', async interaction => {
 
             const tradeLog = new TradeLog({
                 messageId: sentMessage.id,
-                asset: asset
+                asset: asset,
+                direction: direction,
+                entry: entry,
+                sl: sl,
+                tp1: tp1,
+                tp2: tp2,
+                fullTp: fullTp,
+                status: 'ON GOING'
             });
             await tradeLog.save();
+        }
+    } else if (interaction.isButton()) {
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return interaction.reply({ content: 'คุณไม่มีสิทธิ์ใช้งานปุ่มนี้!', ephemeral: true });
+        }
 
-        } else if (interaction.customId.startsWith('result_modal_')) {
-            const parts = interaction.customId.split('_');
-            const resultType = parts[2]; // tp1, tp2, fulltp, sl, be
-            const messageId = parts.slice(3).join('_'); // Get messageId
-
-            const pointsStr = interaction.fields.getTextInputValue('pointsInput');
-            const rrStr = interaction.fields.getTextInputValue('rrInput');
-            const points = parseFloat(pointsStr) || 0;
-            const rr = parseFloat(rrStr) || 0;
-
+        if (interaction.customId.startsWith('btn_')) {
+            const btnType = interaction.customId.split('_')[1]; // tp1, tp2, fulltp, sl, be
+            const messageId = interaction.message.id;
+            
             const tradeLog = await TradeLog.findOne({ messageId });
             if (!tradeLog) {
                 return interaction.reply({ content: 'ไม่พบข้อมูล Signal นี้ในระบบ Database', ephemeral: true });
             }
 
-            const statusMap = {
-                'tp1': 'TP1',
-                'tp2': 'TP2',
-                'fulltp': 'Full TP',
-                'sl': 'SL',
-                'be': 'BE'
-            };
-            tradeLog.status = statusMap[resultType];
+            // AUTO MATH
+            const entry = tradeLog.entry;
+            const sl = tradeLog.sl;
+            const risk = Math.abs(entry - sl);
+            
+            let points = 0;
+            let rr = 0;
+            let statusText = '';
+            let color = '#00ff9f'; // Default green
+
+            if (btnType === 'sl') {
+                points = -Math.abs(entry - sl);
+                rr = -1;
+                statusText = 'Hit SL 🛑';
+                color = '#ff3333';
+            } else if (btnType === 'be') {
+                points = 0;
+                rr = 0;
+                statusText = 'Break Even 🛡️';
+                color = '#808080';
+            } else {
+                // It's a TP
+                let tpPrice = 0;
+                if (btnType === 'tp1') { tpPrice = tradeLog.tp1; statusText = 'TP1 Hit 🎯'; }
+                if (btnType === 'tp2') { tpPrice = tradeLog.tp2; statusText = 'TP2 Hit 🎯'; }
+                if (btnType === 'fulltp') { tpPrice = tradeLog.fullTp; statusText = 'Full TP Hit 🚀'; }
+
+                points = Math.abs(tpPrice - entry);
+                rr = risk > 0 ? (points / risk) : 0;
+            }
+
+            // Format numbers
+            rr = parseFloat(rr.toFixed(2));
+            points = parseFloat(points.toFixed(2));
+
+            tradeLog.status = statusText;
             tradeLog.points = points;
             tradeLog.rr = rr;
             await tradeLog.save();
@@ -118,24 +174,20 @@ client.on('interactionCreate', async interaction => {
             const message = await interaction.channel.messages.fetch(messageId);
             const embed = EmbedBuilder.from(message.embeds[0]);
             
-            let color = '#00ff9f'; // Default Green
-            if (resultType === 'sl') color = '#ff0000'; // Red
-            else if (resultType === 'be') color = '#808080'; // Gray
-
             embed.setColor(color);
             embed.addFields({ 
                 name: '📊 Result', 
-                value: `Status: **${tradeLog.status}**\nPoints: **${points > 0 ? '+' : ''}${points}**\nRR: **${rr > 0 ? '+' : ''}${rr}**`, 
+                value: `Status: **${statusText}**\nPoints: **${points > 0 ? '+' : ''}${points}**\nRR: **${rr > 0 ? '+' : ''}${rr}R**`, 
                 inline: false 
             });
 
-            // Disable the clicked button, keep others active or disable all? Let's disable the clicked one.
+            // Disable the clicked button
             const components = message.components;
             const newComponents = components.map(row => {
                 return new ActionRowBuilder().addComponents(
                     row.components.map(c => {
                         const btn = ButtonBuilder.from(c);
-                        if (c.customId === `btn_${resultType}`) {
+                        if (c.customId === `btn_${btnType}`) {
                             btn.setDisabled(true);
                         }
                         return btn;
@@ -144,38 +196,7 @@ client.on('interactionCreate', async interaction => {
             });
 
             await message.edit({ embeds: [embed], components: newComponents });
-            await interaction.reply({ content: 'อัปเดตสถานะสำเร็จ!', ephemeral: true });
-        }
-    } else if (interaction.isButton()) {
-        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-            return interaction.reply({ content: 'คุณไม่มีสิทธิ์ใช้งานปุ่มนี้!', ephemeral: true });
-        }
-
-        if (interaction.customId.startsWith('btn_')) {
-            const btnType = interaction.customId.split('_')[1]; // tp1, sl, etc.
-            
-            const modal = new ModalBuilder()
-                .setCustomId(`result_modal_${btnType}_${interaction.message.id}`)
-                .setTitle('📊 ระบุผลประกอบการ');
-
-            const pointsInput = new TextInputBuilder()
-                .setCustomId('pointsInput')
-                .setLabel('Points (e.g. 500, -200, 0)')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true);
-
-            const rrInput = new TextInputBuilder()
-                .setCustomId('rrInput')
-                .setLabel('RR (e.g. 1.5, -1, 0)')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true);
-
-            modal.addComponents(
-                new ActionRowBuilder().addComponents(pointsInput),
-                new ActionRowBuilder().addComponents(rrInput)
-            );
-
-            await interaction.showModal(modal);
+            await interaction.reply({ content: `✅ อัปเดตสถานะสำเร็จ: ${statusText} (Points: ${points}, RR: ${rr})`, ephemeral: true });
         }
     }
 });

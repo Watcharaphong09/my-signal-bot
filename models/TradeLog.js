@@ -10,10 +10,28 @@ const tradeLogSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    direction: {
+        type: String,
+        enum: ['BUY', 'SELL']
+    },
+    entry: {
+        type: Number
+    },
+    sl: {
+        type: Number
+    },
+    tp1: {
+        type: Number
+    },
+    tp2: {
+        type: Number
+    },
+    fullTp: {
+        type: Number
+    },
     status: {
         type: String,
-        default: 'Pending',
-        enum: ['Pending', 'TP1', 'TP2', 'Full TP', 'SL', 'BE']
+        default: 'ON GOING'
     },
     points: {
         type: Number,

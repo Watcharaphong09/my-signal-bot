@@ -4,20 +4,44 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('signal')
         .setDescription('ส่งสัญญาณเทรดเข้าห้อง (เฉพาะแอดมิน)')
+        .addStringOption(option => option.setName('asset').setDescription('คู่เทรด (Asset)').setRequired(true)
+            .addChoices(
+                { name: 'XAUUSD', value: 'XAUUSD' },
+                { name: 'BTCUSD', value: 'BTCUSD' },
+                { name: 'US30', value: 'US30' },
+                { name: 'NASDAQ', value: 'NASDAQ' },
+                { name: 'EURUSD', value: 'EURUSD' },
+                { name: 'GBPUSD', value: 'GBPUSD' }
+            )
+        )
+        .addStringOption(option => option.setName('direction').setDescription('ทิศทางออเดอร์').setRequired(true)
+            .addChoices(
+                { name: '🟢 BUY', value: 'BUY' },
+                { name: '🔴 SELL', value: 'SELL' }
+            )
+        )
+        .addAttachmentOption(option => option.setName('image').setDescription('แนบรูปกราฟประกอบ (Optional)').setRequired(false))
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
-        // Create the modal
-        const modal = new ModalBuilder()
-            .setCustomId('signal_modal')
-            .setTitle('⚡ Create New Signal');
+        const asset = interaction.options.getString('asset');
+        const direction = interaction.options.getString('direction');
+        const image = interaction.options.getAttachment('image');
 
-        // Create the text input components
-        const assetInput = new TextInputBuilder()
-            .setCustomId('assetInput')
-            .setLabel('Asset & Direction (e.g., XAUUSD BUY)')
-            .setStyle(TextInputStyle.Short)
-            .setRequired(true);
+        // Initialize cache on client if it doesn't exist
+        if (!interaction.client.imageCache) interaction.client.imageCache = new Map();
+        
+        // Cache image if provided
+        if (image) {
+            interaction.client.imageCache.set(interaction.user.id, image.url);
+        } else {
+            interaction.client.imageCache.delete(interaction.user.id);
+        }
+
+        // Create the modal - CustomId includes asset and direction
+        const modal = new ModalBuilder()
+            .setCustomId(`signal_modal_${asset}_${direction}`)
+            .setTitle(`⚡ ${asset} ${direction} Signal`);
 
         const entryInput = new TextInputBuilder()
             .setCustomId('entryInput')
@@ -27,33 +51,36 @@ module.exports = {
 
         const slInput = new TextInputBuilder()
             .setCustomId('slInput')
-            .setLabel('Stop Loss (SL)')
+            .setLabel('Stop Loss (SL) Price')
             .setStyle(TextInputStyle.Short)
             .setRequired(true);
 
-        const tpInput = new TextInputBuilder()
-            .setCustomId('tpInput')
-            .setLabel('Take Profit Targets (e.g. 2000, 2010)')
+        const tp1Input = new TextInputBuilder()
+            .setCustomId('tp1Input')
+            .setLabel('TP1 Price')
             .setStyle(TextInputStyle.Short)
             .setRequired(true);
 
-        const imageInput = new TextInputBuilder()
-            .setCustomId('imageInput')
-            .setLabel('Image URL (Optional)')
+        const tp2Input = new TextInputBuilder()
+            .setCustomId('tp2Input')
+            .setLabel('TP2 Price (Optional)')
             .setStyle(TextInputStyle.Short)
             .setRequired(false);
 
-        // An action row only holds one text input, so you need one action row per text input.
-        const firstActionRow = new ActionRowBuilder().addComponents(assetInput);
-        const secondActionRow = new ActionRowBuilder().addComponents(entryInput);
-        const thirdActionRow = new ActionRowBuilder().addComponents(slInput);
-        const fourthActionRow = new ActionRowBuilder().addComponents(tpInput);
-        const fifthActionRow = new ActionRowBuilder().addComponents(imageInput);
+        const fullTpInput = new TextInputBuilder()
+            .setCustomId('fullTpInput')
+            .setLabel('Full TP Price (Optional)')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(false);
 
-        // Add inputs to the modal
-        modal.addComponents(firstActionRow, secondActionRow, thirdActionRow, fourthActionRow, fifthActionRow);
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(entryInput),
+            new ActionRowBuilder().addComponents(slInput),
+            new ActionRowBuilder().addComponents(tp1Input),
+            new ActionRowBuilder().addComponents(tp2Input),
+            new ActionRowBuilder().addComponents(fullTpInput)
+        );
 
-        // Show the modal to the user
         await interaction.showModal(modal);
     }
 };
