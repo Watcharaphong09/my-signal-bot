@@ -273,64 +273,63 @@ client.on('interactionCreate', async interaction => {
             await interaction.reply({ content: `✅ อัปเดตสถานะสำเร็จ`, flags: MessageFlags.Ephemeral });
         }
     } else if (interaction.isModalSubmit() && interaction.customId.startsWith('close_modal_')) {
-        const messageId = interaction.customId.replace('close_modal_', '');
-        const closePriceStr = interaction.fields.getTextInputValue('closePrice');
-        const closePrice = parseFloat(closePriceStr);
+        try {
+            const messageId = interaction.customId.replace('close_modal_', '');
+            
+            const trade = await TradeLog.findOne({ messageId });
+            if (!trade || trade.isClosed) {
+                return interaction.reply({ content: '❌ ออเดอร์นี้ถูกปิดไปแล้วหรือไม่พบข้อมูล', flags: MessageFlags.Ephemeral });
+            }
 
-        if (isNaN(closePrice)) {
-            return interaction.reply({ content: '❌ กรุณากรอกราคาปิดเป็นตัวเลข', flags: MessageFlags.Ephemeral });
+            const closePriceStr = interaction.fields.getTextInputValue('closePrice');
+            const closePrice = parseFloat(closePriceStr);
+
+            if (isNaN(closePrice)) {
+                return interaction.reply({ content: '❌ กรุณากรอกราคาปิดเป็นตัวเลข', flags: MessageFlags.Ephemeral });
+            }
+
+            const entry = trade.entry;
+            const sl = trade.sl;
+            const multiplier = getMultiplier(trade.asset);
+            const riskPoints = Math.abs(entry - sl) * multiplier;
+            
+            const priceDiff = trade.direction === 'BUY' ? closePrice - entry : entry - closePrice;
+            trade.points = priceDiff * multiplier;
+            trade.rr = riskPoints > 0 ? (trade.points / riskPoints) : 0;
+            
+            trade.rr = parseFloat(trade.rr.toFixed(2));
+            trade.points = parseFloat(trade.points.toFixed(2));
+            trade.status = 'Manual Close ⏹️';
+            trade.isClosed = true;
+
+            const message = await interaction.channel.messages.fetch(messageId);
+            const newEmbed = EmbedBuilder.from(message.embeds[0]);
+            
+            const color = trade.points > 0 ? '#00ff9f' : (trade.points < 0 ? '#ff3333' : '#808080');
+            newEmbed.setColor(color);
+            
+            const newFields = newEmbed.data.fields.filter(f => f.name !== '📊 Result');
+            newFields.push({ 
+                name: '📊 Result', 
+                value: `Status: **${trade.status}**\nPoints: **${trade.points > 0 ? '+' : ''}${trade.points}**\nRR: **${trade.rr > 0 ? '+' : ''}${trade.rr}R**`, 
+                inline: false 
+            });
+            newEmbed.setFields(newFields);
+
+            await interaction.update({ embeds: [newEmbed], components: [] });
+            
+            await trade.save();
+            
+            await interaction.channel.send({
+                content: `<@&${process.env.VIP_ROLE_ID}> 🛑 **MANUAL CLOSE:** ${trade.asset} closed at ${closePrice}`,
+                reply: { messageReference: messageId }
+            });
+        } catch (error) {
+            console.error('Error handling close_modal_:', error);
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในระบบ', flags: MessageFlags.Ephemeral }).catch(console.error);
+            }
         }
-
-        const tradeLog = await TradeLog.findOne({ messageId });
-        if (!tradeLog || tradeLog.isClosed) {
-            return interaction.reply({ content: 'ออเดอร์นี้ถูกปิดไปแล้วหรือไม่พบข้อมูล', flags: MessageFlags.Ephemeral });
-        }
-
-        const entry = tradeLog.entry;
-        const sl = tradeLog.sl;
-        const multiplier = getMultiplier(tradeLog.asset);
-        const riskPoints = Math.abs(entry - sl) * multiplier;
-        
-        const priceDiff = tradeLog.direction === 'BUY' ? closePrice - entry : entry - closePrice;
-        tradeLog.points = priceDiff * multiplier;
-        tradeLog.rr = riskPoints > 0 ? (tradeLog.points / riskPoints) : 0;
-        
-        tradeLog.rr = parseFloat(tradeLog.rr.toFixed(2));
-        tradeLog.points = parseFloat(tradeLog.points.toFixed(2));
-        tradeLog.status = 'Manual Close ⏹️';
-        tradeLog.isClosed = true;
-
-        await tradeLog.save();
-
-        const message = await interaction.channel.messages.fetch(messageId);
-        const embed = EmbedBuilder.from(message.embeds[0]);
-        
-        const color = tradeLog.points > 0 ? '#00ff9f' : (tradeLog.points < 0 ? '#ff3333' : '#808080');
-        embed.setColor(color);
-        
-        const newFields = embed.data.fields.filter(f => f.name !== '📊 Result');
-        newFields.push({ 
-            name: '📊 Result', 
-            value: `Status: **${tradeLog.status}**\nPoints: **${tradeLog.points > 0 ? '+' : ''}${tradeLog.points}**\nRR: **${tradeLog.rr > 0 ? '+' : ''}${tradeLog.rr}R**`, 
-            inline: false 
-        });
-        embed.setFields(newFields);
-
-        const newComponents = message.components.map(row => {
-            return new ActionRowBuilder().addComponents(
-                row.components.map(c => ButtonBuilder.from(c).setDisabled(true))
-            );
-        });
-
-        await message.edit({ embeds: [embed], components: newComponents });
-        
-        const channel = interaction.channel;
-        await channel.send({
-            content: `<@&${process.env.VIP_ROLE_ID}> 🛑 **MANUAL CLOSE:** ${tradeLog.asset} closed at ${closePrice}`,
-            reply: { messageReference: messageId }
-        });
-        
-        await interaction.reply({ content: `✅ อัปเดตสถานะ (Manual Close) สำเร็จ`, flags: MessageFlags.Ephemeral });
     }
 });
 
