@@ -108,6 +108,7 @@ client.on('interactionCreate', async interaction => {
             row2.addComponents(new ButtonBuilder().setCustomId('btn_alertbe').setLabel('🔔 แจ้ง BE').setStyle(ButtonStyle.Secondary));
             row2.addComponents(new ButtonBuilder().setCustomId('btn_be').setLabel('🛡️ BE').setStyle(ButtonStyle.Secondary));
             row2.addComponents(new ButtonBuilder().setCustomId('btn_close').setLabel('⏹️ Close').setStyle(ButtonStyle.Primary));
+            row2.addComponents(new ButtonBuilder().setCustomId('cancel_order').setLabel('❌ ยกเลิกออเดอร์').setStyle(ButtonStyle.Danger));
 
             const sentMessage = await interaction.reply({ 
                 content: `<@&${process.env.VIP_ROLE_ID}> ⚡ สัญญาณเทรดใหม่มาแล้วครับ!`,
@@ -132,6 +133,51 @@ client.on('interactionCreate', async interaction => {
     } else if (interaction.isButton()) {
         if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
             return interaction.reply({ content: 'คุณไม่มีสิทธิ์ใช้งานปุ่มนี้!', flags: MessageFlags.Ephemeral });
+        }
+
+        if (interaction.customId === 'cancel_order') {
+            const messageId = interaction.message.id;
+            
+            const tradeLog = await TradeLog.findOne({ messageId });
+            if (!tradeLog) {
+                return interaction.reply({ content: 'ไม่พบข้อมูล Signal นี้ในระบบ Database', flags: MessageFlags.Ephemeral });
+            }
+
+            if (tradeLog.isClosed) {
+                return interaction.reply({ content: 'ออเดอร์นี้ถูกปิดไปแล้ว!', flags: MessageFlags.Ephemeral });
+            }
+
+            tradeLog.points = 0;
+            tradeLog.rr = 0;
+            tradeLog.status = "CANCELED";
+            tradeLog.isClosed = true;
+            await tradeLog.save();
+
+            const message = await interaction.channel.messages.fetch(messageId);
+            const embed = EmbedBuilder.from(message.embeds[0]);
+            
+            embed.setColor('#808080');
+
+            const newFields = embed.data.fields.filter(f => f.name !== '📊 Result');
+            newFields.push({ 
+                name: '📊 Result', 
+                value: `Status: **❌ CANCELED (ยกเลิกแผนเทรด)**\nPoints: **0**\nRR: **0R**`, 
+                inline: false 
+            });
+            embed.setFields(newFields);
+
+            const disabledComponents = message.components.map(row => {
+                return new ActionRowBuilder().addComponents(
+                    row.components.map(c => ButtonBuilder.from(c).setDisabled(true))
+                );
+            });
+
+            await interaction.update({ embeds: [embed], components: disabledComponents });
+            
+            return interaction.channel.send({ 
+                content: `<@&${process.env.VIP_ROLE_ID}> ❌ **UPDATE:** ยกเลิกแผนเทรดออเดอร์นี้นะครับ (Order Canceled - เคลียร์ Pending ได้เลย)`, 
+                reply: { messageReference: messageId } 
+            });
         }
 
         if (interaction.customId.startsWith('btn_')) {
