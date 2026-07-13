@@ -10,11 +10,16 @@ module.exports = {
         await interaction.deferReply();
 
         try {
-            // Get start of the week (Monday)
-            const now = new Date();
-            const first = now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1);
-            const startOfWeek = new Date(new Date().setDate(first));
-            startOfWeek.setHours(0, 0, 0, 0);
+            // Get current time and convert to Thailand time (UTC+7)
+            const nowUTC = new Date();
+            const nowTH = new Date(nowUTC.getTime() + (7 * 60 * 60 * 1000));
+            
+            // Calculate start of the week (Monday) in Thailand time
+            const firstTH = nowTH.getUTCDate() - nowTH.getUTCDay() + (nowTH.getUTCDay() === 0 ? -6 : 1);
+            const startOfWeekTH = new Date(Date.UTC(nowTH.getUTCFullYear(), nowTH.getUTCMonth(), firstTH, 0, 0, 0, 0));
+            
+            // Convert back to UTC for MongoDB query
+            const startOfWeek = new Date(startOfWeekTH.getTime() - (7 * 60 * 60 * 1000));
 
             // Fetch trades for this week
             const trades = await TradeLog.find({ createdAt: { $gte: startOfWeek } });
