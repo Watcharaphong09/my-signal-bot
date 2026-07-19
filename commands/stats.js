@@ -21,8 +21,13 @@ module.exports = {
             // Convert back to UTC for MongoDB query
             const startOfWeek = new Date(startOfWeekTH.getTime() - (7 * 60 * 60 * 1000));
 
-            // Fetch trades for this week
-            const trades = await TradeLog.find({ createdAt: { $gte: startOfWeek } });
+            // Fetch trades for this week OR any ongoing trades from previous weeks
+            const trades = await TradeLog.find({
+                $or: [
+                    { createdAt: { $gte: startOfWeek } },
+                    { isClosed: false }
+                ]
+            });
 
             let totalTrades = trades.length;
             let wins = 0;
