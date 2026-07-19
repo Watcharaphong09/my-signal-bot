@@ -119,6 +119,8 @@ client.on('interactionCreate', async interaction => {
 
             const tradeLog = new TradeLog({
                 messageId: sentMessage.id,
+                providerId: interaction.user.id,
+                providerName: interaction.user.username,
                 asset: asset,
                 direction: direction,
                 entry: entry,

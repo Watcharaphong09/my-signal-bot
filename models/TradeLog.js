@@ -6,6 +6,15 @@ const tradeLogSchema = new mongoose.Schema({
         required: true,
         unique: true
     },
+    providerId: {
+        type: String,
+        required: true,
+        default: 'unknown'
+    },
+    providerName: {
+        type: String,
+        default: 'Unknown'
+    },
     asset: {
         type: String,
         required: true
