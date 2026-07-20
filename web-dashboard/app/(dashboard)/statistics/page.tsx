@@ -106,7 +106,7 @@ export default function StatisticsPage() {
                       dataKey="value"
                       stroke="none"
                     >
-                      {winLossData.map((entry, index) => (
+                      {winLossData.map((entry: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>

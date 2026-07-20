@@ -1,6 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { Crown, Search, Edit2, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface User {
   _id: string;

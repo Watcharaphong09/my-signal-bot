@@ -16,6 +16,7 @@ export default function LeaderboardPage() {
 
   const providers = analytics?.providers || [];
 
+  return (
     <div className="space-y-8 animate-fade-in">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-white flex items-center gap-2">
