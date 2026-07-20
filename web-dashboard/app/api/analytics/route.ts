@@ -16,6 +16,7 @@ export const GET = apiHandler(async () => {
   const monthlyMap = new Map();
   const assetMap = new Map();
   const durationMap = new Map();
+  const calendarMap = new Map();
   
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const sortedTrades = [...trades].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
@@ -76,6 +77,15 @@ export const GET = apiHandler(async () => {
     cumulativeRR += (t.rr || 0);
     cumulativePoints += (t.points || 0);
     monthlyMap.set(m, { name: m, rr: cumulativeRR, points: cumulativePoints });
+
+    // Calendar Data (Group by YYYY-MM-DD)
+    const dateStr = d.toISOString().split('T')[0];
+    if (!calendarMap.has(dateStr)) {
+      calendarMap.set(dateStr, { date: dateStr, trades: 0, rr: 0 });
+    }
+    const calDay = calendarMap.get(dateStr);
+    calDay.trades++;
+    calDay.rr += (t.rr || 0);
   });
 
   // Re-map performance data in order
@@ -102,6 +112,7 @@ export const GET = apiHandler(async () => {
     assetData: Array.from(assetMap.values()).sort((a, b) => b.trades - a.trades).slice(0, 5), // top 5
     durationData: Array.from(durationMap.values()),
     providers,
-    performanceData
+    performanceData,
+    calendarData: Array.from(calendarMap.values())
   });
 });

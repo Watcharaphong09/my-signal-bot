@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function CalendarPage() {
+  const [currentDate, setCurrentDate] = useState(new Date());
+
   const { data: analytics } = useQuery({
     queryKey: ["analytics"],
     queryFn: async () => {
@@ -15,6 +17,25 @@ export default function CalendarPage() {
   });
 
   const calendarData = analytics?.calendarData || [];
+
+  const prevMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+  };
+
+  const nextMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  };
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const monthName = currentDate.toLocaleDateString("en-US", { month: "long" });
+
+  // Calendar logic
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = new Date(year, month, 1).getDay();
+  // Adjust so Monday is 0, Sunday is 6
+  const startOffset = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
+  const totalSlots = Math.ceil((startOffset + daysInMonth) / 7) * 7;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -28,9 +49,9 @@ export default function CalendarPage() {
         </div>
         
         <div className="flex items-center gap-4 text-white">
-          <button className="p-1 hover:bg-white/10 rounded transition-colors"><ChevronLeft size={20}/></button>
-          <span className="font-medium min-w-[120px] text-center">July 2026</span>
-          <button className="p-1 hover:bg-white/10 rounded transition-colors"><ChevronRight size={20}/></button>
+          <button onClick={prevMonth} className="p-1 hover:bg-white/10 rounded transition-colors"><ChevronLeft size={20}/></button>
+          <span className="font-medium min-w-[120px] text-center">{monthName} {year}</span>
+          <button onClick={nextMonth} className="p-1 hover:bg-white/10 rounded transition-colors"><ChevronRight size={20}/></button>
         </div>
       </div>
 
@@ -40,27 +61,34 @@ export default function CalendarPage() {
         </div>
         
         <div className="grid grid-cols-7 gap-3">
-          {Array.from({ length: 35 }).map((_, i) => {
-            const isDay = i > 1 && i < 33;
-            const dayNum = isDay ? i - 1 : "";
+          {Array.from({ length: totalSlots }).map((_, i) => {
+            const dayNum = i - startOffset + 1;
+            const isDay = dayNum > 0 && dayNum <= daysInMonth;
             
-            // Note: Since this is a static mock calendar layout for July 2026, 
-            // we will try to match the dayNum with the dates from the DB
-            // In a real implementation we would generate the grid dynamically based on the current month.
-            const dateStr = `2026-07-${String(dayNum).padStart(2, '0')}`;
+            const monthStr = String(month + 1).padStart(2, '0');
+            const dayStr = String(dayNum).padStart(2, '0');
+            const dateStr = `${year}-${monthStr}-${dayStr}`;
+            
             const dayData = calendarData.find((d: any) => d.date === dateStr);
             const hasTrades = !!dayData;
             const isWin = hasTrades && dayData.rr > 0;
             const isLoss = hasTrades && dayData.rr < 0;
+
+            const isToday = isDay && 
+              new Date().getDate() === dayNum && 
+              new Date().getMonth() === month && 
+              new Date().getFullYear() === year;
             
             return (
               <div 
                 key={i} 
                 className={`min-h-[100px] rounded-lg p-2 flex flex-col ${isDay ? 'bg-white/[0.02] border border-white/5 hover:border-white/20 hover:bg-white/[0.04] transition-colors cursor-pointer' : 'opacity-0 pointer-events-none'}`}
               >
-                <span className={`text-xs font-medium mb-auto ${i === 15 ? 'text-emerald-400 bg-emerald-400/10 w-6 h-6 flex items-center justify-center rounded-full' : 'text-white/40'}`}>
-                  {dayNum}
-                </span>
+                {isDay && (
+                  <span className={`text-xs font-medium mb-auto ${isToday ? 'text-emerald-400 bg-emerald-400/10 w-6 h-6 flex items-center justify-center rounded-full' : 'text-white/40'}`}>
+                    {dayNum}
+                  </span>
+                )}
                 
                 {hasTrades && (
                   <div className="mt-2 space-y-1">
