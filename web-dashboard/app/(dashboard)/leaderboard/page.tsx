@@ -3,11 +3,7 @@
 import { Trophy, Medal, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const providers = [
-  { rank: 1, name: "Alpha Algo", winRate: 78.5, rr: "+142.5R", trades: 124, streak: 8, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20" },
-  { rank: 2, name: "Sniper Trading", winRate: 72.1, rr: "+98.2R", trades: 89, streak: 4, color: "text-slate-300", bg: "bg-slate-400/10", border: "border-slate-400/20" },
-  { rank: 3, name: "Smart Money AI", winRate: 69.8, rr: "+64.0R", trades: 156, streak: 2, color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/20" },
-];
+const providers: any[] = [];
 
 export default function LeaderboardPage() {
   return (
@@ -21,6 +17,13 @@ export default function LeaderboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {providers.length === 0 && (
+          <div className="md:col-span-3 py-16 flex flex-col items-center justify-center text-center glass-card rounded-xl border border-white/5">
+            <Trophy size={48} className="text-white/10 mb-4" />
+            <h3 className="text-lg font-medium text-white/80">Leaderboard Empty</h3>
+            <p className="text-sm text-white/40 mt-1">Ranking will appear here once trade data is available.</p>
+          </div>
+        )}
         {providers.map((p) => (
           <div key={p.rank} className={cn("glass-card rounded-xl p-6 relative overflow-hidden group border", p.border)}>
             <div className={cn("absolute -right-10 -top-10 w-32 h-32 blur-3xl opacity-20", p.bg)} />

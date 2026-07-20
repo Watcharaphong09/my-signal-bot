@@ -3,11 +3,7 @@
 import { Crown, Search, Edit2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const members = [
-  { id: "1", username: "Watcharaphong09", discordId: "123456789", joinDate: "2026-01-15", expireDate: "2026-08-15", status: "Active" },
-  { id: "2", username: "CryptoWhale", discordId: "987654321", joinDate: "2026-02-10", expireDate: "2026-03-10", status: "Expired" },
-  { id: "3", username: "SignalKing", discordId: "456789123", joinDate: "2026-05-20", expireDate: "2026-11-20", status: "Active" },
-];
+const members: any[] = [];
 
 export default function VIPMembersPage() {
   return (
@@ -43,7 +39,13 @@ export default function VIPMembersPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
-            {members.map((m) => (
+            {members.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-12 text-center text-white/40">
+                  No VIP members found.
+                </td>
+              </tr>
+            ) : members.map((m) => (
               <tr key={m.id} className="hover:bg-white/[0.02] transition-colors">
                 <td className="px-4 py-4 font-medium text-white flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-xs">

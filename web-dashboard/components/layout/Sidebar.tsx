@@ -38,9 +38,8 @@ const navigation = [
   },
 ];
 
-export function Sidebar() {
+export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCollapsed: (val: boolean) => void }) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
 
   return (
     <motion.aside

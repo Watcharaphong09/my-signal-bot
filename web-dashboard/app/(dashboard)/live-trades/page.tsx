@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Zap, CheckCircle2, XCircle, TrendingUp, TrendingDown, Clock, Search } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
+import toast from "react-hot-toast";
 
 interface Trade {
   _id: string;
@@ -101,10 +102,10 @@ export default function LiveTradesPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs rounded border border-emerald-500/20 transition-colors">TP1</button>
-                        <button className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs rounded border border-emerald-500/20 transition-colors">TP2</button>
-                        <button className="px-2 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs rounded border border-rose-500/20 transition-colors">SL</button>
-                        <button className="px-2 py-1 bg-white/5 hover:bg-white/10 text-white/70 text-xs rounded border border-white/10 transition-colors">BE</button>
+                        <button onClick={() => toast("TP1 Feature Coming Soon!")} className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs rounded border border-emerald-500/20 transition-colors">TP1</button>
+                        <button onClick={() => toast("TP2 Feature Coming Soon!")} className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs rounded border border-emerald-500/20 transition-colors">TP2</button>
+                        <button onClick={() => toast("SL Feature Coming Soon!")} className="px-2 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs rounded border border-rose-500/20 transition-colors">SL</button>
+                        <button onClick={() => toast("BE Feature Coming Soon!")} className="px-2 py-1 bg-white/5 hover:bg-white/10 text-white/70 text-xs rounded border border-white/10 transition-colors">BE</button>
                       </div>
                     </td>
                   </tr>

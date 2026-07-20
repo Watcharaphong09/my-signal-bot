@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { CommandPalette } from "@/components/layout/CommandPalette";
 import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [commandOpen, setCommandOpen] = useState(false);
@@ -12,8 +13,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-[#080B0F] text-[#F0F6FC] flex">
-      <Sidebar />
-      <div className="flex-1 md:pl-[260px] flex flex-col min-h-screen">
+      <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
+      <div className={cn(
+        "flex-1 flex flex-col min-h-screen transition-all duration-300",
+        sidebarCollapsed ? "md:pl-[72px]" : "md:pl-[260px]"
+      )}>
         <TopBar onOpenCommand={() => setCommandOpen(true)} />
         <CommandPalette open={commandOpen} setOpen={setCommandOpen} />
         

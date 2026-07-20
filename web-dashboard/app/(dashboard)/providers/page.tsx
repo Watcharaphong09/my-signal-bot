@@ -2,11 +2,7 @@
 
 import { Users, Activity, Target } from "lucide-react";
 
-const providersList = [
-  { id: "alpha", name: "Alpha Algo", members: 125, active: true, winRate: 78.5, totalTrades: 124 },
-  { id: "sniper", name: "Sniper Trading", members: 89, active: true, winRate: 72.1, totalTrades: 89 },
-  { id: "smart", name: "Smart Money AI", members: 245, active: true, winRate: 69.8, totalTrades: 156 },
-];
+const providersList: any[] = [];
 
 export default function ProvidersPage() {
   return (
@@ -22,6 +18,13 @@ export default function ProvidersPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {providersList.length === 0 && (
+          <div className="md:col-span-2 lg:col-span-3 py-16 flex flex-col items-center justify-center text-center glass-card rounded-xl border border-white/5">
+            <Users size={48} className="text-white/10 mb-4" />
+            <h3 className="text-lg font-medium text-white/80">No Signal Providers</h3>
+            <p className="text-sm text-white/40 mt-1">Provider data will appear here once connected to the database.</p>
+          </div>
+        )}
         {providersList.map((p) => (
           <div key={p.id} className="glass-card rounded-xl p-6 border border-white/10 hover:border-white/20 transition-colors">
             <div className="flex justify-between items-start mb-4">
