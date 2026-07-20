@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
     discordId: { type: String, required: true, unique: true },
+    username: { type: String, default: 'Unknown User' },
     roleId: { type: String, required: true },
     startDate: { type: Date, default: Date.now },
     expireDate: { type: Date, required: true },

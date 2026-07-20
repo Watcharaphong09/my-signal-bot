@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from "mongoose";
 
 export interface IUser extends Document {
   discordId: string;
+  username: string;
   roleId: string;
   startDate: Date;
   expireDate: Date;
@@ -12,6 +13,7 @@ export interface IUser extends Document {
 
 const userSchema = new Schema<IUser>({
   discordId: { type: String, required: true, unique: true },
+  username: { type: String, default: 'Unknown User' },
   roleId: { type: String, required: true },
   startDate: { type: Date, default: Date.now },
   expireDate: { type: Date, required: true },

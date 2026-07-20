@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 interface User {
   _id: string;
   discordId: string;
+  username?: string;
   roleId: string;
   startDate: string;
   expireDate: string;
@@ -78,9 +79,9 @@ export default function VIPMembersPage() {
                 <tr key={m._id} className="hover:bg-white/[0.02] transition-colors">
                   <td className="px-4 py-4 font-medium text-white flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-xs">
-                      {m.discordId.substring(0, 2)}
+                      {(m.username || m.discordId).substring(0, 2).toUpperCase()}
                     </div>
-                    {m.discordId}
+                    {m.username || 'Unknown User'}
                   </td>
                   <td className="px-4 py-4 text-white/70">{m.discordId}</td>
                   <td className="px-4 py-4 text-white/70">{new Date(m.startDate).toLocaleDateString()}</td>

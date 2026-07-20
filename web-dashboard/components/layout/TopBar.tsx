@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Search, Bell, Monitor, User } from "lucide-react";
+import toast from "react-hot-toast";
 
 export function TopBar({ onOpenCommand }: { onOpenCommand: () => void }) {
   const [mounted, setMounted] = useState(false);
@@ -45,18 +46,18 @@ export function TopBar({ onOpenCommand }: { onOpenCommand: () => void }) {
         </div>
 
         {/* Actions */}
-        <button className="p-2 text-white/50 hover:text-white transition-colors relative">
+        <button onClick={() => toast('Notifications feature coming soon!')} className="p-2 text-white/50 hover:text-white transition-colors relative">
           <Bell size={18} />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500" />
         </button>
 
-        <button className="p-2 text-white/50 hover:text-white transition-colors">
+        <button onClick={() => toast('Display settings coming soon!')} className="p-2 text-white/50 hover:text-white transition-colors">
           <Monitor size={18} />
         </button>
 
         {/* Profile */}
-        <button className="flex items-center gap-2 pl-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-violet-600 to-blue-500 flex items-center justify-center text-white font-medium text-sm border border-white/10">
+        <button onClick={() => toast('Profile settings coming soon!')} className="flex items-center gap-2 pl-2 cursor-pointer transition-transform hover:scale-105">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-violet-600 to-blue-500 flex items-center justify-center text-white font-medium text-sm border border-white/10 shadow-lg">
             A
           </div>
         </button>
