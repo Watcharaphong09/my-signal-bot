@@ -6,9 +6,16 @@ import { AlertCircle, CheckCircle2 } from "lucide-react";
 
 export default function CreateSignalPage() {
   const router = useRouter();
+  const PROVIDERS = [
+    { id: "415855508377829378", name: "AiNine", alias: "นาย" },
+    { id: "748555481513197809", name: "MNT", alias: "จ้าว" },
+    { id: "853888916318846986", name: "X²", alias: "โอม" },
+    { id: "897466046523539456", name: "𝔠𝔥𝔞𝔫𝔤𝔱𝔴𝔬𝔟𝔞𝔱𝔥𝔣𝔦𝔳𝔢", alias: "ช้าง" }
+  ];
+
   const [formData, setFormData] = useState({
-    providerId: "",
-    providerName: "",
+    providerId: PROVIDERS[0].id,
+    providerName: PROVIDERS[0].name,
     asset: "XAUUSD",
     signalType: "Scalping",
     action: "BUY",
@@ -25,7 +32,18 @@ export default function CreateSignalPage() {
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (e.target.name === "provider") {
+      const selectedProvider = PROVIDERS.find(p => p.id === e.target.value);
+      if (selectedProvider) {
+        setFormData({ 
+          ...formData, 
+          providerId: selectedProvider.id,
+          providerName: selectedProvider.name
+        });
+      }
+    } else {
+      setFormData({ ...formData, [e.target.name]: e.target.value });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -74,14 +92,16 @@ export default function CreateSignalPage() {
         <div className="bg-gray-900 p-6 rounded-xl border border-gray-800">
           <form onSubmit={handleSubmit} className="space-y-4">
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">Provider ID</label>
-                <input required type="text" name="providerId" value={formData.providerId} onChange={handleChange} className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-white" placeholder="Discord User ID" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">Provider Name</label>
-                <input required type="text" name="providerName" value={formData.providerName} onChange={handleChange} className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-white" placeholder="Username" />
+                <label className="block text-sm font-medium text-gray-400 mb-1">Provider (ผู้ให้ซิก)</label>
+                <select name="provider" value={formData.providerId} onChange={handleChange} className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-white">
+                  {PROVIDERS.map((provider) => (
+                    <option key={provider.id} value={provider.id}>
+                      {provider.alias} ({provider.name})
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
