@@ -16,7 +16,8 @@ export default function CreateSignalPage() {
     sl: "",
     tp1: "",
     tp2: "",
-    fullTp: ""
+    fullTp: "",
+    imageUrl: ""
   });
   
   const [error, setError] = useState<string | null>(null);
@@ -109,6 +110,11 @@ export default function CreateSignalPage() {
                   <option value="SELL">SELL</option>
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Image URL (Optional)</label>
+              <input type="url" name="imageUrl" value={formData.imageUrl} onChange={handleChange} className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-white" placeholder="https://example.com/image.png" />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -207,6 +213,13 @@ export default function CreateSignalPage() {
                   </div>
                 )}
               </div>
+
+              {formData.imageUrl && (
+                <div className="mt-4 rounded-md overflow-hidden max-w-full">
+                  <img src={formData.imageUrl} alt="Preview" className="max-h-64 object-contain" />
+                </div>
+              )}
+
               <p className="text-[10px] text-gray-500 mt-4">VIP Trade • การลงทุนมีความเสี่ยง</p>
             </div>
             

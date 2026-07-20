@@ -13,8 +13,9 @@ const signalSchema = z.object({
   entry: z.number().positive(),
   sl: z.number().positive(),
   tp1: z.number().positive(),
-  tp2: z.number().positive().optional().nullable(),
-  fullTp: z.number().positive().optional().nullable(),
+  tp2: z.number().positive().optional(),
+  fullTp: z.number().positive().optional(),
+  imageUrl: z.string().url("ต้องเป็นลิงก์ URL รูปภาพที่ถูกต้อง").optional().or(z.literal('')),
 }).refine((data) => {
   if (data.action === "BUY") {
     return data.sl < data.entry && data.tp1 > data.entry;
@@ -110,7 +111,8 @@ export async function POST(request: Request) {
         { name: '🚀 TP1', value: `**${data.tp1}**`, inline: true }
       ],
       timestamp: new Date().toISOString(),
-      footer: { text: 'VIP Trade • การลงทุนมีความเสี่ยง' }
+      footer: { text: 'VIP Trade • การลงทุนมีความเสี่ยง' },
+      ...(data.imageUrl ? { image: { url: data.imageUrl } } : {})
     };
     
     if (data.tp2) embed.fields.push({ name: '🚀 TP2', value: `**${data.tp2}**`, inline: true });
