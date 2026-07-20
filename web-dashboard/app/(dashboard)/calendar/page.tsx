@@ -29,9 +29,7 @@ export default function CalendarPage() {
           {Array.from({ length: 35 }).map((_, i) => {
             const isDay = i > 1 && i < 33;
             const dayNum = isDay ? i - 1 : "";
-            const isWin = i % 5 === 0;
-            const isLoss = i % 8 === 0;
-            const hasTrades = isDay && (isWin || isLoss || i % 3 === 0);
+            const hasTrades = false; // Mock data cleared
             
             return (
               <div 
@@ -44,11 +42,8 @@ export default function CalendarPage() {
                 
                 {hasTrades && (
                   <div className="mt-2 space-y-1">
-                    <div className={`text-[10px] px-1 py-0.5 rounded ${isWin ? 'bg-emerald-500/20 text-emerald-400' : isLoss ? 'bg-rose-500/20 text-rose-400' : 'bg-white/10 text-white/70'}`}>
-                      {isWin ? '+45R' : isLoss ? '-12R' : '+5R'}
-                    </div>
-                    <div className="text-[9px] text-white/30 text-left pl-1">
-                      {isWin ? '4 Trades' : '2 Trades'}
+                    <div className="text-[10px] px-1 py-0.5 rounded bg-white/10 text-white/70">
+                      +0R
                     </div>
                   </div>
                 )}
