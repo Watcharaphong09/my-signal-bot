@@ -85,7 +85,8 @@ export async function POST(request: Request) {
     // 1. Validation
     const parseResult = signalSchema.safeParse(body);
     if (!parseResult.success) {
-      return NextResponse.json({ error: parseResult.error.errors[0].message }, { status: 400 });
+      const errorMessage = (parseResult.error as any).errors?.[0]?.message || "Validation Error";
+      return NextResponse.json({ error: errorMessage }, { status: 400 });
     }
     
     const data = parseResult.data;
