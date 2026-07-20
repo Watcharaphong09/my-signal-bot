@@ -12,12 +12,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#080B0F] text-[#F0F6FC] flex">
+    <div className="min-h-screen bg-[#080B0F] text-[#F0F6FC] flex overflow-hidden">
       <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
-      <div className={cn(
-        "flex-1 flex flex-col min-h-screen transition-all duration-300",
-        sidebarCollapsed ? "md:pl-[72px]" : "md:pl-[260px]"
-      )}>
+      <div className="flex-1 flex flex-col h-screen overflow-y-auto">
         <TopBar onOpenCommand={() => setCommandOpen(true)} />
         <CommandPalette open={commandOpen} setOpen={setCommandOpen} />
         

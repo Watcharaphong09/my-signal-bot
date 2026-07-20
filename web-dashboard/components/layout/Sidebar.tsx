@@ -45,7 +45,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCo
     <motion.aside
       initial={{ width: 260 }}
       animate={{ width: collapsed ? 72 : 260 }}
-      className="hidden md:flex flex-col h-screen fixed left-0 top-0 border-r border-white/5 bg-[#080B0F]/95 backdrop-blur-xl z-40"
+      className="hidden md:flex flex-col h-screen flex-shrink-0 border-r border-white/5 bg-[#080B0F]/95 backdrop-blur-xl z-40 relative"
     >
       {/* Brand */}
       <div className={cn("flex items-center h-[64px] border-b border-white/5 px-4", collapsed ? "justify-center" : "gap-3")}>
