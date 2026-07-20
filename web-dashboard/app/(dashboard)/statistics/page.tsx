@@ -126,11 +126,15 @@ export default function StatisticsPage() {
           <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-white/5">
             <div className="text-center">
               <div className="text-[10px] text-white/40 uppercase">Wins</div>
-              <div className="text-emerald-400 font-semibold num text-lg">68</div>
+              <div className="text-emerald-400 font-semibold num text-lg">
+                {winLossData.length > 0 ? winLossData[0].value : 0}
+              </div>
             </div>
             <div className="text-center">
               <div className="text-[10px] text-white/40 uppercase">Losses</div>
-              <div className="text-rose-400 font-semibold num text-lg">32</div>
+              <div className="text-rose-400 font-semibold num text-lg">
+                {winLossData.length > 0 ? winLossData[1].value : 0}
+              </div>
             </div>
           </div>
         </div>
