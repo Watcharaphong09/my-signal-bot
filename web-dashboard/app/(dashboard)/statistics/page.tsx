@@ -1,12 +1,25 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { BarChart3, TrendingUp, PieChart as PieChartIcon } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from "recharts";
 
-const performanceData: any[] = [];
-const winLossData: any[] = [];
-
 export default function StatisticsPage() {
+  const { data: analytics, isLoading } = useQuery({
+    queryKey: ["analytics"],
+    queryFn: async () => {
+      const res = await fetch("/api/analytics");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    }
+  });
+
+  const performanceData = analytics?.performanceData || [];
+  const winLossData = analytics?.winLossData || [];
+  const winRate = winLossData.length > 0 && (winLossData[0].value + winLossData[1].value > 0)
+    ? Math.round((winLossData[0].value / (winLossData[0].value + winLossData[1].value)) * 100)
+    : 0;
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -103,7 +116,7 @@ export default function StatisticsPage() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
-                  <span className="text-3xl font-semibold text-white num">0%</span>
+                  <span className="text-3xl font-semibold text-white num">{winRate}%</span>
                   <span className="text-[10px] text-white/40 uppercase tracking-wider">Win Rate</span>
                 </div>
               </>

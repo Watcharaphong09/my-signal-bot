@@ -1,11 +1,21 @@
 "use client";
 
 import { Users, Activity, Target } from "lucide-react";
-
-const providersList: any[] = [];
+import { useQuery } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
 
 export default function ProvidersPage() {
-  return (
+  const { data: analytics, isLoading } = useQuery({
+    queryKey: ["analytics"],
+    queryFn: async () => {
+      const res = await fetch("/api/analytics");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    }
+  });
+
+  const providersList = analytics?.providers || [];
+
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
         <div>
@@ -25,29 +35,34 @@ export default function ProvidersPage() {
             <p className="text-sm text-white/40 mt-1">Provider data will appear here once connected to the database.</p>
           </div>
         )}
-        {providersList.map((p) => (
+        {providersList.map((p: any) => (
           <div key={p.id} className="glass-card rounded-xl p-6 border border-white/10 hover:border-white/20 transition-colors">
             <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 font-semibold text-lg">
-                {p.name.charAt(0)}
+              <div>
+                <h3 className="font-semibold text-white text-lg">{p.name}</h3>
+                <div className="flex items-center gap-1.5 text-xs text-white/40 mt-1">
+                  <Activity size={12} className="text-blue-400" />
+                  <span>{p.total} Total Signals</span>
+                </div>
               </div>
-              <span className="text-[10px] px-2 py-1 rounded-full uppercase font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                Active
+              <span className={cn(
+                "text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold border",
+                p.total > 0 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-white/5 text-white/40 border-white/10"
+              )}>
+                {p.total > 0 ? 'Active' : 'Inactive'}
               </span>
             </div>
-            <h3 className="text-xl font-semibold text-white mb-1">{p.name}</h3>
-            <p className="text-sm text-white/40 mb-6 flex items-center gap-2">
-              <Users size={14} /> {p.members} Active Subscribers
-            </p>
-            
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
-              <div>
-                <div className="text-[10px] text-white/40 uppercase mb-1 flex items-center gap-1"><Target size={12}/> Win Rate</div>
-                <div className="text-lg font-semibold text-emerald-400">{p.winRate}%</div>
+
+            <div className="grid grid-cols-2 gap-4 mt-6">
+              <div className="bg-white/5 rounded-lg p-3 border border-white/5">
+                <div className="text-xs text-white/50 mb-1">Win Rate</div>
+                <div className="text-lg font-semibold text-white num">{p.winRate.toFixed(1)}%</div>
               </div>
-              <div>
-                <div className="text-[10px] text-white/40 uppercase mb-1 flex items-center gap-1"><Activity size={12}/> Total Signals</div>
-                <div className="text-lg font-semibold text-white num">{p.totalTrades}</div>
+              <div className="bg-white/5 rounded-lg p-3 border border-white/5">
+                <div className="text-xs text-white/50 mb-1">Net RR</div>
+                <div className={cn("text-lg font-semibold num", p.rr > 0 ? "text-emerald-400" : p.rr < 0 ? "text-rose-400" : "text-white")}>
+                  {p.rr > 0 ? `+${p.rr.toFixed(1)}` : p.rr.toFixed(1)}R
+                </div>
               </div>
             </div>
           </div>
