@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, Zap, History, Users, Trophy, BarChart3,
-  Crown, Calendar, Bell, Settings, ChevronLeft, ChevronRight, Bot
+  Crown, Calendar, Bell, Settings, ChevronLeft, ChevronRight, Bot, LogOut
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +40,15 @@ const navigation = [
 
 export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCollapsed: (val: boolean) => void }) {
   const pathname = usePathname();
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/login';
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   return (
     <motion.aside
@@ -92,14 +101,26 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean; setCo
         ))}
       </div>
 
-      {/* Footer toggle */}
-      <div className="p-3 border-t border-white/5">
+      {/* Footer toggle & Logout */}
+      <div className="p-3 border-t border-white/5 space-y-1">
+        <button
+          onClick={handleLogout}
+          className={cn(
+            "flex items-center w-full px-3 py-2 rounded-lg text-rose-400/70 hover:bg-rose-500/10 hover:text-rose-400 transition-colors",
+            collapsed ? "justify-center" : "gap-3"
+          )}
+          title={collapsed ? "Logout" : undefined}
+        >
+          <LogOut size={18} />
+          {!collapsed && <span className="text-sm font-medium">Logout</span>}
+        </button>
         <button
           onClick={() => setCollapsed(!collapsed)}
           className={cn(
             "flex items-center w-full px-3 py-2 rounded-lg text-white/40 hover:bg-white/5 hover:text-white/80 transition-colors",
             collapsed ? "justify-center" : "gap-3"
           )}
+          title={collapsed ? "Collapse" : undefined}
         >
           {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
           {!collapsed && <span className="text-sm font-medium">Collapse</span>}
