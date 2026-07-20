@@ -38,7 +38,19 @@ export async function middleware(request: NextRequest) {
   try {
     // Verify token
     const secretKey = new TextEncoder().encode(JWT_SECRET);
-    await jwtVerify(token, secretKey);
+    const { payload } = await jwtVerify(token, secretKey);
+    
+    // Role based authorization
+    const role = payload.role as string;
+    const adminOnlyPaths = ['/vip-members', '/settings', '/api/users', '/api/analytics'];
+    
+    if (adminOnlyPaths.some(p => pathname.startsWith(p)) && role !== 'admin') {
+      if (pathname.startsWith('/api')) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+
     return NextResponse.next();
   } catch (error) {
     // Invalid token

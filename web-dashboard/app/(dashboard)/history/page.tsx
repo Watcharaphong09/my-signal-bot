@@ -3,11 +3,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { History, Download, Filter, Search, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
 
 interface Trade {
   _id: string;
   asset: string;
-  direction: "BUY" | "SELL";
+  action: "BUY" | "SELL";
   status: string;
   providerName: string;
   rr: number;
@@ -16,6 +21,10 @@ interface Trade {
 }
 
 export default function HistoryPage() {
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 10;
+
   const { data: trades, isLoading } = useQuery<Trade[]>({
     queryKey: ["history-trades"],
     queryFn: async () => {
@@ -25,8 +34,35 @@ export default function HistoryPage() {
     },
   });
 
+  const filteredTrades = trades?.filter(trade => 
+    trade.asset.toLowerCase().includes(search.toLowerCase()) || 
+    trade.providerName.toLowerCase().includes(search.toLowerCase()) ||
+    trade.status.toLowerCase().includes(search.toLowerCase())
+  ) || [];
+
+  const totalPages = Math.ceil(filteredTrades.length / itemsPerPage) || 1;
+  const paginatedTrades = filteredTrades.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+
+  const exportCSV = () => {
+    if (!trades) return;
+    const headers = ["Date", "Asset", "Direction", "Provider", "Status", "Points", "Net RR"];
+    const csvContent = [
+      headers.join(","),
+      ...filteredTrades.map(t => 
+        `"${new Date(t.createdAt).toISOString()}","${t.asset}","${t.action}","${t.providerName}","${t.status}",${t.points || 0},${t.rr || 0}`
+      )
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `trade-history-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+  };
+
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in-up">
       {/* Header & Controls */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -38,25 +74,30 @@ export default function HistoryPage() {
         </div>
         
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="relative flex-1 sm:flex-none">
+          <div className="relative flex-1 sm:flex-none sm:w-64">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-            <input 
+            <Input 
               type="text" 
               placeholder="Search history..." 
-              className="pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50 w-full sm:w-64 transition-colors"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="pl-9"
             />
           </div>
-          <button className="p-2.5 bg-white/5 border border-white/10 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors">
+          <Button variant="outline" size="icon">
             <Filter size={16} />
-          </button>
-          <button className="p-2.5 bg-white/5 border border-white/10 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors">
+          </Button>
+          <Button variant="outline" size="icon" onClick={exportCSV}>
             <Download size={16} />
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Advanced Data Table */}
-      <div className="glass-card rounded-xl overflow-hidden border border-white/10">
+      <Card className="p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="bg-white/[0.02] border-b border-white/10 text-white/50 font-medium">
@@ -81,14 +122,14 @@ export default function HistoryPage() {
                     <td className="px-4 py-4"><div className="h-4 bg-white/10 rounded w-12 ml-auto"></div></td>
                   </tr>
                 ))
-              ) : trades?.length === 0 ? (
+              ) : paginatedTrades.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-white/40">
                     No closed trades found.
                   </td>
                 </tr>
               ) : (
-                trades?.map((trade) => {
+                paginatedTrades.map((trade) => {
                   const isWin = trade.rr > 0 || trade.points > 0 || trade.status === "WIN" || trade.status.includes("TP");
                   return (
                     <tr key={trade._id} className="hover:bg-white/[0.02] transition-colors cursor-pointer">
@@ -96,17 +137,14 @@ export default function HistoryPage() {
                         {new Date(trade.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' })}
                       </td>
                       <td className="px-4 py-3 font-medium text-white flex items-center gap-2">
-                        {trade.direction === "BUY" ? <ArrowUpRight size={14} className="text-emerald-400" /> : <ArrowDownRight size={14} className="text-rose-400" />}
+                        {trade.action === "BUY" ? <ArrowUpRight size={14} className="text-emerald-400" /> : <ArrowDownRight size={14} className="text-rose-400" />}
                         {trade.asset}
                       </td>
                       <td className="px-4 py-3 text-white/70">{trade.providerName}</td>
                       <td className="px-4 py-3">
-                        <span className={cn(
-                          "text-[10px] px-2 py-0.5 rounded-full border uppercase tracking-wider font-semibold",
-                          isWin ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-rose-500/10 border-rose-500/20 text-rose-400"
-                        )}>
+                        <Badge variant={isWin ? "success" : "destructive"}>
                           {trade.status}
-                        </span>
+                        </Badge>
                       </td>
                       <td className={cn("px-4 py-3 text-right num font-medium", isWin ? "text-emerald-400" : "text-rose-400")}>
                         {trade.points > 0 ? `+${trade.points}` : trade.points}
@@ -122,15 +160,29 @@ export default function HistoryPage() {
           </table>
         </div>
         
-        {/* Pagination Placeholder */}
+        {/* Pagination */}
         <div className="px-4 py-3 border-t border-white/5 flex items-center justify-between text-xs text-white/40">
-          <span>Showing 1 to {trades?.length || 0} of {trades?.length || 0} entries</span>
-          <div className="flex gap-1">
-            <button className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-50" disabled>Prev</button>
-            <button className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-50" disabled>Next</button>
+          <span>Showing {(page - 1) * itemsPerPage + 1} to {Math.min(page * itemsPerPage, filteredTrades.length)} of {filteredTrades.length} entries</span>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              Prev
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+            >
+              Next
+            </Button>
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

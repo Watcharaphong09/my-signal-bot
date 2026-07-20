@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { LayoutDashboard, TrendingUp, Zap, Target, Clock, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 
 interface KPIData {
   totalTrades: number;
@@ -33,7 +34,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in-up">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-white">Dashboard Overview</h1>
@@ -51,7 +52,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {isLoading
           ? Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="glass-card rounded-xl p-5 shimmer min-h-[140px]" />
+              <Card key={i} className="min-h-[140px] shimmer" />
             ))
           : kpis.map((kpi, i) => (
               <motion.div
@@ -59,54 +60,65 @@ export default function DashboardPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: i * 0.1 }}
-                className="glass-card rounded-xl p-5 hover:bg-white/[0.02] transition-colors group relative overflow-hidden"
               >
-                {/* Glow Effect */}
-                <div className={cn("absolute -right-4 -top-4 w-24 h-24 blur-3xl opacity-20 group-hover:opacity-40 transition-opacity", kpi.bg)} />
-                
-                <div className="flex items-center justify-between mb-4 relative z-10">
-                  <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center border border-white/5", kpi.bg)}>
-                    <kpi.icon size={18} className={kpi.color} />
+                <Card className="group hover:bg-white/[0.04] transition-all cursor-default">
+                  {/* Glow Effect */}
+                  <div className={cn("absolute -right-4 -top-4 w-24 h-24 blur-3xl opacity-20 group-hover:opacity-40 transition-opacity", kpi.bg)} />
+                  
+                  <div className="flex flex-row items-center justify-between pb-2">
+                    <p className="text-[11px] font-medium text-white/50 uppercase tracking-wider">{kpi.label}</p>
+                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center border border-white/5", kpi.bg)}>
+                      <kpi.icon size={16} className={kpi.color} />
+                    </div>
                   </div>
-                </div>
-                <div className="relative z-10">
-                  <p className="text-[11px] font-medium text-white/40 uppercase tracking-wider mb-1">{kpi.label}</p>
-                  <div className="flex items-baseline gap-1">
-                    <motion.h3 
-                      initial={{ scale: 0.9 }}
-                      animate={{ scale: 1 }}
-                      className={cn("text-3xl font-semibold num tracking-tight transition-colors", kpi.color)}
-                    >
-                      {kpi.value.toLocaleString()}
-                    </motion.h3>
-                    <span className="text-sm font-medium text-white/40">{kpi.suffix}</span>
-                  </div>
-                </div>
+                  <CardContent className="pb-0 px-0">
+                    <div className="flex items-baseline gap-1 mt-1">
+                      <h3 className={cn("text-3xl font-semibold tracking-tight transition-colors num", kpi.color)}>
+                        {kpi.value.toLocaleString()}
+                      </h3>
+                      <span className="text-sm font-medium text-white/40">{kpi.suffix}</span>
+                    </div>
+                  </CardContent>
+                </Card>
               </motion.div>
             ))}
       </div>
 
-      {/* Main Content Area Placeholder */}
+      {/* Main Content Area */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.4 }}
-          className="lg:col-span-2 glass-card rounded-xl p-6 min-h-[400px] flex flex-col items-center justify-center text-center"
+          className="lg:col-span-2"
         >
-          <TrendingUp size={32} className="text-white/20 mb-4" />
-          <h3 className="text-lg font-medium text-white/80">Performance Chart</h3>
-          <p className="text-sm text-white/40 max-w-sm mt-2">Recharts equity curve and historical performance data will be integrated here in Phase 4.</p>
+          <Card className="h-full min-h-[400px]">
+            <CardHeader>
+              <CardTitle>Performance Chart</CardTitle>
+              <CardDescription>Equity curve and historical performance</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center justify-center h-[300px] text-center border-t border-white/5 pt-8">
+              <TrendingUp size={32} className="text-white/20 mb-4" />
+              <p className="text-sm text-white/40 max-w-sm">Recharts equity curve and historical performance data will be integrated here.</p>
+            </CardContent>
+          </Card>
         </motion.div>
+
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.5 }}
-          className="glass-card rounded-xl p-6 min-h-[400px] flex flex-col items-center justify-center text-center"
         >
-          <Clock size={32} className="text-white/20 mb-4" />
-          <h3 className="text-lg font-medium text-white/80">Recent Activity</h3>
-          <p className="text-sm text-white/40 max-w-sm mt-2">Live feed of Discord bot signal creations, TP hits, and SL hits.</p>
+          <Card className="h-full min-h-[400px]">
+            <CardHeader>
+              <CardTitle>Recent Activity</CardTitle>
+              <CardDescription>Live feed of recent signals</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center justify-center h-[300px] text-center border-t border-white/5 pt-8">
+              <Clock size={32} className="text-white/20 mb-4" />
+              <p className="text-sm text-white/40 max-w-sm">Live feed of Discord bot signal creations, TP hits, and SL hits.</p>
+            </CardContent>
+          </Card>
         </motion.div>
       </div>
     </div>

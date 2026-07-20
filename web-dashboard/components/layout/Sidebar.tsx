@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, Zap, History, Users, Trophy, BarChart3,
-  Crown, Calendar, Bell, Settings, ChevronLeft, ChevronRight, Bot, LogOut
+  Crown, Calendar, Bell, Settings, ChevronLeft, ChevronRight, Bot, LogOut, PlusCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +15,7 @@ const navigation = [
     group: "Dashboard",
     items: [
       { name: "Dashboard", href: "/", icon: LayoutDashboard },
+      { name: "Create Signal", href: "/create-signal", icon: PlusCircle },
       { name: "Live Trades", href: "/live-trades", icon: Zap },
       { name: "Trade History", href: "/history", icon: History },
     ],

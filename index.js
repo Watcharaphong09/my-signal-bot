@@ -49,9 +49,10 @@ client.on('interactionCreate', async interaction => {
         }
     } else if (interaction.isModalSubmit()) {
         if (interaction.customId.startsWith('signal_modal_')) {
+            try {
             const parts = interaction.customId.split('_');
             const asset = parts[2];
-            const direction = parts[3];
+            const action = parts[3]; // renamed from 'direction' to match unified schema
 
             const entryStr = interaction.fields.getTextInputValue('entryInput');
             const slStr = interaction.fields.getTextInputValue('slInput');
@@ -73,10 +74,21 @@ client.on('interactionCreate', async interaction => {
                 return interaction.reply({ content: '❌ กรุณากรอกราคาเป็นตัวเลขเท่านั้น (Entry, SL, TP1)', flags: MessageFlags.Ephemeral });
             }
 
-            const embedColor = direction === 'BUY' ? '#00ff9f' : '#ff3333';
+            // Generate a unique 6-char tradeId with collision retry
+            let tradeId;
+            for (let i = 0; i < 5; i++) {
+                tradeId = Math.random().toString(36).substring(2, 8).toUpperCase();
+                const exists = await TradeLog.findOne({ tradeId });
+                if (!exists) break;
+                if (i === 4) {
+                    return interaction.reply({ content: '❌ ไม่สามารถสร้าง Trade ID ได้ กรุณาลองใหม่อีกครั้ง', flags: MessageFlags.Ephemeral });
+                }
+            }
+
+            const embedColor = action === 'BUY' ? '#00ff9f' : '#ff3333';
             const embed = new EmbedBuilder()
                 .setColor(embedColor)
-                .setTitle(`⚡ SIGNAL ALERT: ${asset} ${direction}`)
+                .setTitle(`⚡ SIGNAL ALERT: ${asset} ${action}`)
                 .addFields(
                     { name: '🎯 Entry', value: `**${entry}**`, inline: true },
                     { name: '🛑 Stop Loss', value: `**${sl}**`, inline: true },
@@ -118,11 +130,13 @@ client.on('interactionCreate', async interaction => {
             });
 
             const tradeLog = new TradeLog({
+                tradeId: tradeId,
+                signalType: 'Scalping', // Default for legacy /signal command
                 messageId: sentMessage.id,
                 providerId: interaction.user.id,
                 providerName: interaction.user.username,
                 asset: asset,
-                direction: direction,
+                action: action,
                 entry: entry,
                 sl: sl,
                 tp1: tp1,
@@ -131,22 +145,47 @@ client.on('interactionCreate', async interaction => {
                 status: 'ON GOING'
             });
             await tradeLog.save();
+            } catch (error) {
+                console.error('Error handling signal_modal:', error);
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการสร้าง Signal', flags: MessageFlags.Ephemeral }).catch(console.error);
+                }
+            }
         }
     } else if (interaction.isButton()) {
-        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-            return interaction.reply({ content: 'คุณไม่มีสิทธิ์ใช้งานปุ่มนี้!', flags: MessageFlags.Ephemeral });
+        const isAdmin = interaction.member.permissions.has(PermissionFlagsBits.Administrator);
+        const isVIP = interaction.member.roles.cache.has(process.env.VIP_ROLE_ID);
+        if (!isAdmin && !isVIP) {
+            return interaction.reply({ content: '❌ คุณไม่มีสิทธิ์ใช้งานปุ่มนี้! (เฉพาะ Admin หรือ VIP เท่านั้น)', flags: MessageFlags.Ephemeral });
         }
+
+        if (interaction.customId === 'btn_close') {
+            const closeModal = new ModalBuilder()
+                .setCustomId(`close_modal_${interaction.message.id}`)
+                .setTitle('⏹️ Manual Close');
+            
+            const closePriceInput = new TextInputBuilder()
+                .setCustomId('closePrice')
+                .setLabel('Closing Price')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true);
+            
+            closeModal.addComponents(new ActionRowBuilder().addComponents(closePriceInput));
+            return interaction.showModal(closeModal);
+        }
+
+        await interaction.deferUpdate();
 
         if (interaction.customId === 'cancel_order') {
             const messageId = interaction.message.id;
             
             const tradeLog = await TradeLog.findOne({ messageId });
             if (!tradeLog) {
-                return interaction.reply({ content: 'ไม่พบข้อมูล Signal นี้ในระบบ Database', flags: MessageFlags.Ephemeral });
+                return interaction.followUp({ content: 'ไม่พบข้อมูล Signal นี้ในระบบ Database', flags: MessageFlags.Ephemeral });
             }
 
             if (tradeLog.isClosed) {
-                return interaction.reply({ content: 'ออเดอร์นี้ถูกปิดไปแล้ว!', flags: MessageFlags.Ephemeral });
+                return interaction.followUp({ content: 'ออเดอร์นี้ถูกปิดไปแล้ว!', flags: MessageFlags.Ephemeral });
             }
 
             tradeLog.points = 0;
@@ -174,8 +213,13 @@ client.on('interactionCreate', async interaction => {
                 );
             });
 
-            await interaction.update({ embeds: [embed], components: disabledComponents });
+            await interaction.editReply({ embeds: [embed], components: disabledComponents });
             
+            const logChannel = await interaction.guild.channels.fetch(process.env.LOG_CHANNEL_ID).catch(() => null);
+            if (logChannel) {
+                await logChannel.send(`[AUDIT] <@${interaction.user.id}> CANCELED Trade ID: ${tradeLog.tradeId || 'N/A'} (Message: ${messageId})`);
+            }
+
             return interaction.channel.send({ 
                 content: `<@&${process.env.VIP_ROLE_ID}> ❌ **UPDATE:** ยกเลิกแผนเทรดออเดอร์นี้นะครับ (Order Canceled - เคลียร์ Pending ได้เลย)`, 
                 reply: { messageReference: messageId } 
@@ -183,16 +227,16 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (interaction.customId.startsWith('btn_')) {
-            const btnType = interaction.customId.split('_')[1]; // tp1, tp2, fulltp, sl, be, close
+            const btnType = interaction.customId.split('_')[1]; // tp1, tp2, fulltp, sl, be
             const messageId = interaction.message.id;
             
             const tradeLog = await TradeLog.findOne({ messageId });
             if (!tradeLog) {
-                return interaction.reply({ content: 'ไม่พบข้อมูล Signal นี้ในระบบ Database', flags: MessageFlags.Ephemeral });
+                return interaction.followUp({ content: 'ไม่พบข้อมูล Signal นี้ในระบบ Database', flags: MessageFlags.Ephemeral });
             }
 
             if (tradeLog.isClosed) {
-                return interaction.reply({ content: 'ออเดอร์นี้ถูกปิดไปแล้ว!', flags: MessageFlags.Ephemeral });
+                return interaction.followUp({ content: 'ออเดอร์นี้ถูกปิดไปแล้ว!', flags: MessageFlags.Ephemeral });
             }
 
             if (btnType === 'alertbe') {
@@ -203,7 +247,6 @@ client.on('interactionCreate', async interaction => {
                 if (resultField) {
                     if (!resultField.value.includes('(กันหน้าทุนแล้ว 🛡️)')) {
                         resultField.value = resultField.value.replace(/Status: \*\*(.*?)\*\*/, 'Status: **$1 (กันหน้าทุนแล้ว 🛡️)**');
-                        // Also update embed fields
                         const newFields = embed.data.fields.map(f => f.name === '📊 Result' ? resultField : f);
                         embed.setFields(newFields);
                     }
@@ -220,27 +263,17 @@ client.on('interactionCreate', async interaction => {
                     await tradeLog.save();
                 }
                 
-                await interaction.update({ embeds: [embed] });
+                await interaction.editReply({ embeds: [embed] });
                 
+                const logChannel = await interaction.guild.channels.fetch(process.env.LOG_CHANNEL_ID).catch(() => null);
+                if (logChannel) {
+                    await logChannel.send(`[AUDIT] <@${interaction.user.id}> ALERT BE on Trade ID: ${tradeLog.tradeId || 'N/A'}`);
+                }
+
                 return interaction.channel.send({ 
                     content: `<@&${process.env.VIP_ROLE_ID}> 🛡️ **UPDATE:** ออเดอร์นี้กันหน้าทุน (Break Even) เรียบร้อยแล้วนะครับ ปล่อยรันต่อได้เลย!`, 
                     reply: { messageReference: interaction.message.id } 
                 });
-            }
-
-            if (btnType === 'close') {
-                const closeModal = new ModalBuilder()
-                    .setCustomId(`close_modal_${messageId}`)
-                    .setTitle('⏹️ Manual Close');
-                
-                const closePriceInput = new TextInputBuilder()
-                    .setCustomId('closePrice')
-                    .setLabel('Closing Price')
-                    .setStyle(TextInputStyle.Short)
-                    .setRequired(true);
-                
-                closeModal.addComponents(new ActionRowBuilder().addComponents(closePriceInput));
-                return interaction.showModal(closeModal);
             }
 
             const entry = tradeLog.entry;
@@ -249,7 +282,7 @@ client.on('interactionCreate', async interaction => {
             const riskPoints = Math.abs(entry - sl) * multiplier;
             
             let statusText = '';
-            let color = tradeLog.direction === 'BUY' ? '#00ff9f' : '#ff3333'; // Default to match direction
+            let color = tradeLog.action === 'BUY' ? '#00ff9f' : '#ff3333'; // Default to match action
             let disableButtons = false;
 
             if (btnType === 'sl') {
@@ -310,15 +343,17 @@ client.on('interactionCreate', async interaction => {
                 });
             }
 
-            await message.edit({ embeds: [embed], components: newComponents });
+            await interaction.editReply({ embeds: [embed], components: newComponents });
             
-            const channel = interaction.channel;
-            await channel.send({ 
+            const logChannel = await interaction.guild.channels.fetch(process.env.LOG_CHANNEL_ID).catch(() => null);
+            if (logChannel) {
+                await logChannel.send(`[AUDIT] <@${interaction.user.id}> clicked [${statusText}] on Trade ID: ${tradeLog.tradeId || 'N/A'}`);
+            }
+
+            await interaction.channel.send({ 
                 content: `<@&${process.env.VIP_ROLE_ID}> ⚡ **UPDATE:** ${tradeLog.asset} ${statusText}`,
                 reply: { messageReference: messageId }
             });
-            
-            await interaction.reply({ content: `✅ อัปเดตสถานะสำเร็จ`, flags: MessageFlags.Ephemeral });
         }
     } else if (interaction.isModalSubmit() && interaction.customId.startsWith('close_modal_')) {
         try {
@@ -341,7 +376,7 @@ client.on('interactionCreate', async interaction => {
             const multiplier = getMultiplier(trade.asset);
             const riskPoints = Math.abs(entry - sl) * multiplier;
             
-            const priceDiff = trade.direction === 'BUY' ? closePrice - entry : entry - closePrice;
+            const priceDiff = trade.action === 'BUY' ? closePrice - entry : entry - closePrice;
             trade.points = priceDiff * multiplier;
             trade.rr = riskPoints > 0 ? (trade.points / riskPoints) : 0;
             
@@ -364,7 +399,18 @@ client.on('interactionCreate', async interaction => {
             });
             newEmbed.setFields(newFields);
 
-            await interaction.update({ embeds: [newEmbed], components: [] });
+            const disabledComponents = message.components.map(row => {
+                return new ActionRowBuilder().addComponents(
+                    row.components.map(c => ButtonBuilder.from(c).setDisabled(true))
+                );
+            });
+
+            await interaction.update({ embeds: [newEmbed], components: disabledComponents });
+            
+            const logChannel = await interaction.guild.channels.fetch(process.env.LOG_CHANNEL_ID).catch(() => null);
+            if (logChannel) {
+                await logChannel.send(`[AUDIT] <@${interaction.user.id}> MANUAL CLOSE on Trade ID: ${trade.tradeId || 'N/A'} at ${closePrice}`);
+            }
             
             await trade.save();
             

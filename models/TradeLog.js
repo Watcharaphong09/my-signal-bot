@@ -1,6 +1,17 @@
 const mongoose = require('mongoose');
 
 const tradeLogSchema = new mongoose.Schema({
+    tradeId: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    signalType: {
+        type: String,
+        enum: ['Scalping', 'Run'],
+        required: true,
+        default: 'Scalping'
+    },
     messageId: {
         type: String,
         required: true,
@@ -19,9 +30,10 @@ const tradeLogSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    direction: {
+    action: {
         type: String,
-        enum: ['BUY', 'SELL']
+        enum: ['BUY', 'SELL'],
+        required: true
     },
     entry: {
         type: Number

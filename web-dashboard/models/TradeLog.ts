@@ -1,11 +1,13 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface ITradeLog extends Document {
+  tradeId: string;
+  signalType: "Scalping" | "Run";
   messageId: string;
   providerId: string;
   providerName: string;
   asset: string;
-  direction: "BUY" | "SELL";
+  action: "BUY" | "SELL";
   entry?: number;
   sl?: number;
   tp1?: number;
@@ -19,11 +21,13 @@ export interface ITradeLog extends Document {
 }
 
 const tradeLogSchema = new Schema<ITradeLog>({
+  tradeId: { type: String, required: true, unique: true },
+  signalType: { type: String, enum: ["Scalping", "Run"], required: true, default: "Scalping" },
   messageId: { type: String, required: true, unique: true },
   providerId: { type: String, required: true, default: "unknown" },
   providerName: { type: String, default: "Unknown" },
   asset: { type: String, required: true },
-  direction: { type: String, enum: ["BUY", "SELL"] },
+  action: { type: String, enum: ["BUY", "SELL"], required: true },
   entry: { type: Number },
   sl: { type: Number },
   tp1: { type: Number },
